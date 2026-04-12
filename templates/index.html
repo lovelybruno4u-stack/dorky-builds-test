@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dorky Builds | DECONSTRUCTED_CODEBASE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+darkMode: "class",
+theme: {
+extend: {
+colors: {
+"primary": "#00FF41",
+"background": "#000000",
+"surface": "#121212",
+"surface-border": "#333333",
+"on-surface": "#FFFFFF",
+"on-surface-variant": "#A0A0A0",
+},
+fontFamily: {
+"mono": ["JetBrains Mono", "monospace"],
+},
+borderRadius: {
+"none": "0",
+"DEFAULT": "0",
+},
+},
+},
+}
+</script>
+<style type="text/tailwindcss">
+body {
+@apply font-mono bg-background text-on-surface;
+background-image: radial-gradient(#1a1a1a 1px, transparent 1px);
+background-size: 20px 20px;
+}
+.brutalist-border { border: 2px solid #333333; }
+.accent-border { border: 2px solid #00FF41; }
+.terminal-header {
+background: #1a1a1a;
+border-bottom: 2px solid #333333;
+padding: 4px 12px;
+font-size: 0.75rem;
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.terminal-dot {
+width: 8px;
+height: 8px;
+border-radius: 50%;
+background: #333;
+}
+.ascii-art {
+white-space: pre;
+font-size: 10px;
+color: #00FF41;
+}
+.scanline {
+width: 100%;
+height: 2px;
+background: rgba(0, 255, 65, 0.1);
+position: absolute;
+z-index: 100;
+pointer-events: none;
+}
+</style>
+</head>
+<body class="selection:bg-primary selection:text-black">
+
+<!-- ⚠️ KEEP EVERYTHING ABOVE EXACT. EXTEND BELOW ONLY -->
+
+<div class="scanline" id="scanline"></div>
+<div id="cursor-glow" class="fixed w-32 h-32 rounded-full pointer-events-none z-50 mix-blend-screen opacity-20" style="background: radial-gradient(circle, #00FF41 0%, transparent 70%); transform: translate(-50%, -50%); display: none;"></div>
+
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-40 bg-background/90 backdrop-blur-sm border-b-2 border-surface-border p-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <div class="text-primary font-bold tracking-widest text-xl cursor-pointer hover:text-white transition-colors" onclick="window.scrollTo(0,0)">
+            > DORKY_BUILDS_
+        </div>
+
+        <!-- Desktop Nav -->
+        <div class="hidden md:flex gap-6 text-sm">
+            <a href="#home" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[01] HOME</a>
+            <a href="#engine" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[02] ENGINE</a>
+            <a href="#workbench" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[03] WORKBENCH</a>
+            <a href="#pricing" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[04] PRICING</a>
+            <a href="#pipeline" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[05] PIPELINE</a>
+            <a href="#origin" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[06] ORIGIN</a>
+            <a href="#join" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[07] JOIN</a>
+            <a href="#contact" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[08] CONTACT</a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button class="md:hidden text-primary hover:text-white" id="mobile-menu-btn">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+    </div>
+</nav>
+
+<!-- Mobile Nav Overlay -->
+<div id="mobile-nav" class="fixed inset-0 z-50 bg-background flex flex-col pt-20 px-6 transform translate-x-full transition-transform duration-300">
+    <div class="flex justify-end mb-8">
+        <button id="close-menu-btn" class="text-primary hover:text-white">
+            <span class="material-symbols-outlined text-3xl">close</span>
+        </button>
+    </div>
+    <div class="flex flex-col gap-6 text-xl">
+        <a href="#home" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[01] HOME</a>
+        <a href="#engine" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[02] ENGINE</a>
+        <a href="#workbench" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[03] WORKBENCH</a>
+        <a href="#pricing" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[04] PRICING</a>
+        <a href="#pipeline" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[05] PIPELINE</a>
+        <a href="#origin" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[06] ORIGIN</a>
+        <a href="#join" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[07] JOIN</a>
+        <a href="#contact" class="mobile-link hover:text-primary transition-colors pb-2">[08] CONTACT</a>
+    </div>
+</div>
+
+<main class="pt-24 max-w-7xl mx-auto px-4 pb-24">
+
+<!-- HERO -->
+<section id="home" class="min-h-[80vh] flex flex-col justify-center border-b-2 border-surface-border pb-16 relative">
+    <div class="brutalist-border bg-surface p-1 mb-8 max-w-fit">
+        <div class="terminal-header">
+            <div class="flex gap-2">
+                <div class="terminal-dot" style="background:#ff5f56"></div>
+                <div class="terminal-dot" style="background:#ffbd2e"></div>
+                <div class="terminal-dot" style="background:#27c93f"></div>
+            </div>
+            <span>system@dorky:~$ ./init</span>
+        </div>
+        <div class="p-6 bg-black">
+            <h1 class="text-4xl md:text-6xl lg:text-8xl font-bold tracking-tighter uppercase mb-4 text-white">
+                WE BUILD <br>
+                <span id="rotating-text" class="text-primary inline-block min-w-[300px]">SYSTEMS</span><span class="animate-pulse">_</span>
+            </h1>
+            <p class="text-on-surface-variant text-lg md:text-xl max-w-2xl mb-8 border-l-2 border-primary pl-4">
+                Elite engineering for modern startups. Deconstruct the old, compile the new. Full-stack development, AI integrations, and brutal automation.
+            </p>
+            <div class="flex flex-wrap gap-4">
+                <button class="bg-primary text-black font-bold py-3 px-8 hover:bg-white transition-colors uppercase tracking-widest text-sm flex items-center gap-2" onclick="document.getElementById('pricing').scrollIntoView()">
+                    > COMMIT_PROJECT
+                </button>
+                <button class="border-2 border-surface-border text-white font-bold py-3 px-8 hover:border-primary hover:text-primary transition-colors uppercase tracking-widest text-sm flex items-center gap-2" onclick="document.getElementById('workbench').scrollIntoView()">
+                    [ VIEW_SOURCE ]
+                </button>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ENGINE MODULES -->
+<section id="engine" class="py-24 border-b-2 border-surface-border">
+    <div class="mb-12">
+        <h2 class="text-3xl font-bold text-primary mb-2">> ENGINE_MODULES.sys</h2>
+        <p class="text-on-surface-variant">Core capabilities loaded into memory.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Module 1 -->
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_01.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">code</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">Web Dev</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">High-performance, scalable web applications built with modern frameworks. Brutally fast and relentlessly optimized.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > STATUS: ACTIVE
+                </div>
+            </div>
+        </div>
+
+        <!-- Module 2 -->
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_02.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">smart_toy</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">AI Tools</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">Custom LLM integrations, automated workflows, and intelligent agents. Augmenting human capability with machine precision.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > STATUS: ACTIVE
+                </div>
+            </div>
+        </div>
+
+        <!-- Module 3 -->
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_03.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">precision_manufacturing</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">Automation</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">Scripts, bots, and CI/CD pipelines. Eradicating manual labor through ruthless systemic efficiency.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > STATUS: ACTIVE
+                </div>
+            </div>
+        </div>
+
+        <!-- Module 4 -->
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_04.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">school</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">Student Projects</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">Mentorship and foundational builds for the next generation of engineers. Launching careers with production-grade code.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > STATUS: ACTIVE
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- WORKBENCH -->
+<section id="workbench" class="py-24 border-b-2 border-surface-border">
+    <div class="mb-12 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+        <div>
+            <h2 class="text-3xl font-bold text-primary mb-2">> WORKBENCH.dir</h2>
+            <p class="text-on-surface-variant">Deployed artifacts and production systems.</p>
+        </div>
+        <div class="flex gap-2 text-sm overflow-x-auto pb-2">
+            <button class="filter-btn active border border-surface-border px-3 py-1 hover:border-primary hover:text-primary transition-colors text-white" data-filter="all">[ ALL ]</button>
+            <button class="filter-btn border border-surface-border px-3 py-1 hover:border-primary hover:text-primary transition-colors text-on-surface-variant" data-filter="web">[ WEB ]</button>
+            <button class="filter-btn border border-surface-border px-3 py-1 hover:border-primary hover:text-primary transition-colors text-on-surface-variant" data-filter="ai">[ AI ]</button>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="project-grid">
+        <!-- Project 1 -->
+        <div class="project-card web brutalist-border bg-black cursor-pointer group" onclick="openModal('proj1')">
+            <div class="h-48 bg-surface-border relative overflow-hidden flex items-center justify-center">
+                <span class="material-symbols-outlined text-6xl text-on-surface-variant group-hover:text-primary transition-colors">public</span>
+                <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <div class="p-4">
+                <h4 class="font-bold text-lg mb-1 group-hover:text-primary transition-colors">Neural_Net_Dashboard</h4>
+                <p class="text-xs text-on-surface-variant mb-4">React, Tailwind, WebSockets</p>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-primary">> VIEW_CASE_STUDY</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project 2 -->
+        <div class="project-card ai brutalist-border bg-black cursor-pointer group" onclick="openModal('proj2')">
+            <div class="h-48 bg-surface-border relative overflow-hidden flex items-center justify-center">
+                <span class="material-symbols-outlined text-6xl text-on-surface-variant group-hover:text-primary transition-colors">psychology</span>
+                <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <div class="p-4">
+                <h4 class="font-bold text-lg mb-1 group-hover:text-primary transition-colors">Cognitive_Agent</h4>
+                <p class="text-xs text-on-surface-variant mb-4">Python, OpenAI, LangChain</p>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-primary">> VIEW_CASE_STUDY</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project 3 -->
+        <div class="project-card web brutalist-border bg-black cursor-pointer group" onclick="openModal('proj3')">
+            <div class="h-48 bg-surface-border relative overflow-hidden flex items-center justify-center">
+                <span class="material-symbols-outlined text-6xl text-on-surface-variant group-hover:text-primary transition-colors">api</span>
+                <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            </div>
+            <div class="p-4">
+                <h4 class="font-bold text-lg mb-1 group-hover:text-primary transition-colors">Data_Pipeline_V2</h4>
+                <p class="text-xs text-on-surface-variant mb-4">Node.js, PostgreSQL, Redis</p>
+                <div class="flex justify-between items-center text-xs">
+                    <span class="text-primary">> VIEW_CASE_STUDY</span>
+                    <span class="material-symbols-outlined text-sm">arrow_forward</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing" class="py-24 border-b-2 border-surface-border">
+    <div class="mb-12 text-center">
+        <h2 class="text-3xl font-bold text-primary mb-2">> RESOURCE_ALLOCATION.cfg</h2>
+        <p class="text-on-surface-variant">Select compute tier.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <!-- Starter -->
+        <div class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors">
+            <h3 class="text-xl font-bold mb-2">STARTER</h3>
+            <div class="text-3xl font-bold text-white mb-6">₹4,999<span class="text-sm text-on-surface-variant font-normal">/project</span></div>
+            <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                <li class="flex gap-2"><span class="text-primary">✓</span> Single Page Application</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Basic UI/UX Design</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Mobile Responsive</li>
+                <li class="flex gap-2"><span class="text-surface-border">✗</span> Backend Integration</li>
+            </ul>
+            <button class="w-full border border-surface-border py-2 hover:bg-white hover:text-black transition-colors font-bold text-sm uppercase">INITIATE</button>
+        </div>
+
+        <!-- Pro (Highlight) -->
+        <div class="brutalist-border bg-black p-1 relative transform md:-translate-y-4 shadow-[0_0_15px_rgba(0,255,65,0.2)]">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-black text-xs font-bold px-3 py-1 uppercase tracking-wider">
+                Recommended
+            </div>
+            <div class="border-2 border-primary p-6 flex flex-col h-full bg-surface">
+                <h3 class="text-xl font-bold mb-2 text-primary">PRO</h3>
+                <div class="text-4xl font-bold text-white mb-6">₹14,999<span class="text-sm text-on-surface-variant font-normal">/project</span></div>
+                <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                    <li class="flex gap-2"><span class="text-primary">✓</span> Multi-page Application</li>
+                    <li class="flex gap-2"><span class="text-primary">✓</span> Custom UI/UX & Animations</li>
+                    <li class="flex gap-2"><span class="text-primary">✓</span> Database Integration</li>
+                    <li class="flex gap-2"><span class="text-primary">✓</span> Basic API Development</li>
+                    <li class="flex gap-2"><span class="text-primary">✓</span> 1 Month Support</li>
+                </ul>
+                <button class="w-full bg-primary text-black py-3 hover:bg-white transition-colors font-bold text-sm uppercase">DEPLOY_NOW</button>
+            </div>
+        </div>
+
+        <!-- Elite -->
+        <div class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors">
+            <h3 class="text-xl font-bold mb-2">ELITE</h3>
+            <div class="text-3xl font-bold text-white mb-6">₹39,999<span class="text-sm text-on-surface-variant font-normal">/project</span></div>
+            <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                <li class="flex gap-2"><span class="text-primary">✓</span> Full-Stack System</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Advanced AI Integration</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Complex Architectures</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Scalable Infrastructure</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> 3 Months Support</li>
+            </ul>
+            <button class="w-full border border-surface-border py-2 hover:bg-white hover:text-black transition-colors font-bold text-sm uppercase">CONTACT_COMMAND</button>
+        </div>
+    </div>
+</section>
+
+<!-- PIPELINE -->
+<section id="pipeline" class="py-24 border-b-2 border-surface-border">
+    <div class="mb-12">
+        <h2 class="text-3xl font-bold text-primary mb-2">> EXECUTION_PIPELINE.sh</h2>
+        <p class="text-on-surface-variant">Standard operating procedure for project compilation.</p>
+    </div>
+
+    <div class="relative">
+        <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-surface-border -translate-x-1/2"></div>
+
+        <div class="space-y-12">
+            <!-- Step 1 -->
+            <div class="relative flex flex-col md:flex-row items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-right mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">SCAN_ENV</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Deep analysis of requirements, architecture planning, and feasibility assessment. No code until the blueprint is flawless.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">01</div>
+                <div class="md:w-5/12"></div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="relative flex flex-col md:flex-row-reverse items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-left mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">BUILD_PROTO</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Rapid construction of core systems. Minimum Viable Product deployed for immediate feedback loop.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">02</div>
+                <div class="md:w-5/12"></div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="relative flex flex-col md:flex-row items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-right mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">TEST_SYSTEM</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Rigorous stress testing, security audits, and performance optimization. Breaking things in dev so they survive in prod.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">03</div>
+                <div class="md:w-5/12"></div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="relative flex flex-col md:flex-row-reverse items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-left mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">PUSH_PROD</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Final deployment to live servers. Continuous monitoring established. System operational.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-primary border-2 border-primary flex items-center justify-center text-black font-bold shadow-[0_0_15px_rgba(0,255,65,0.4)]">04</div>
+                <div class="md:w-5/12"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ORIGIN / ABOUT -->
+<section id="origin" class="py-24 border-b-2 border-surface-border">
+    <div class="flex flex-col md:flex-row gap-12">
+        <div class="md:w-1/2">
+            <h2 class="text-3xl font-bold text-primary mb-6">> ORIGIN_STORY.txt</h2>
+            <div class="prose prose-invert border-l-2 border-surface-border pl-6 space-y-4 text-on-surface-variant">
+                <p>
+                    Dorky Builds wasn't founded in a boardroom. It was compiled in late-night hackathons, fueled by caffeine and a relentless obsession with clean architecture.
+                </p>
+                <p>
+                    We saw an industry bloated with slow, over-engineered solutions. Our vision? Strip away the cruft. Build tools that work. Deploy systems that scale. We operate like a tactical unit for code.
+                </p>
+                <p>
+                    <strong>Mission Directive:</strong> Deliver production-grade software with brutal efficiency. No fluff, just execution.
+                </p>
+            </div>
+        </div>
+        <div class="md:w-1/2 brutalist-border bg-black p-6 relative overflow-hidden">
+            <div class="absolute right-0 top-0 opacity-10 pointer-events-none text-9xl font-bold text-primary -translate-y-8 translate-x-8">DB</div>
+            <div class="relative z-10">
+                <h3 class="text-xl font-bold mb-4 text-white">TIMELINE</h3>
+                <ul class="space-y-4">
+                    <li class="flex gap-4">
+                        <span class="text-primary font-bold">2022</span>
+                        <span class="text-on-surface-variant">System initialized. First scripts written.</span>
+                    </li>
+                    <li class="flex gap-4">
+                        <span class="text-primary font-bold">2023</span>
+                        <span class="text-on-surface-variant">Agency core compiled. Delivered 20+ web solutions.</span>
+                    </li>
+                    <li class="flex gap-4">
+                        <span class="text-primary font-bold">2024</span>
+                        <span class="text-on-surface-variant">AI integration layer added. Scaled operations globally.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- STATS -->
+<section id="stats" class="py-16 border-b-2 border-surface-border bg-surface/50">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="150">0</span>+</div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Deployments</div>
+        </div>
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="99">0</span>%</div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Uptime</div>
+        </div>
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="42">0</span></div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">AI Agents Built</div>
+        </div>
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="10">0</span>K</div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Commits</div>
+        </div>
+    </div>
+</section>
+
+<!-- CAREERS -->
+<section id="join" class="py-24 border-b-2 border-surface-border">
+    <div class="mb-12">
+        <h2 class="text-3xl font-bold text-primary mb-2">> RECRUITMENT.exe</h2>
+        <p class="text-on-surface-variant">Join the collective. Open nodes available.</p>
+    </div>
+
+    <div class="brutalist-border bg-surface p-6 md:p-12">
+        <div class="flex flex-col md:flex-row gap-12">
+            <div class="md:w-1/2">
+                <h3 class="text-2xl font-bold mb-4">OPEN_POSITIONS</h3>
+                <div class="space-y-4">
+                    <div class="border border-surface-border p-4 hover:border-primary transition-colors cursor-pointer group">
+                        <h4 class="font-bold group-hover:text-primary">Full-Stack Engineer</h4>
+                        <p class="text-xs text-on-surface-variant">Remote | Full-time</p>
+                    </div>
+                    <div class="border border-surface-border p-4 hover:border-primary transition-colors cursor-pointer group">
+                        <h4 class="font-bold group-hover:text-primary">AI Integration Specialist</h4>
+                        <p class="text-xs text-on-surface-variant">Remote | Contract</p>
+                    </div>
+                </div>
+            </div>
+            <div class="md:w-1/2">
+                <form id="apply-form" class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-primary mb-1">> GITHUB_URL</label>
+                        <input type="url" required class="w-full bg-black border border-surface-border p-2 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-primary mb-1">> PORTFOLIO/LINKEDIN</label>
+                        <input type="url" required class="w-full bg-black border border-surface-border p-2 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-primary mb-1">> WHY_DORKY_BUILDS</label>
+                        <textarea required rows="4" class="w-full bg-black border border-surface-border p-2 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm resize-none"></textarea>
+                    </div>
+                    <button type="submit" class="bg-primary text-black font-bold py-2 px-6 hover:bg-white transition-colors uppercase tracking-widest text-sm w-full md:w-auto">
+                        > SUBMIT_APPLICATION
+                    </button>
+                    <div id="apply-status" class="text-xs mt-2 hidden font-bold text-primary"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" class="py-24">
+    <div class="mb-12 text-center">
+        <h2 class="text-3xl font-bold text-primary mb-2">> COMMUNICATION_LINK.socket</h2>
+        <p class="text-on-surface-variant">Establish a secure connection.</p>
+    </div>
+
+    <div class="max-w-2xl mx-auto">
+        <form id="contact-form" class="space-y-6 brutalist-border p-6 md:p-8 bg-surface">
+            <div class="terminal-header -mt-8 -mx-8 mb-6 border-x-2 border-t-2 border-surface-border">
+                <span class="text-on-surface-variant">contact.sh</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-xs text-primary mb-1">> IDENTIFIER (NAME)</label>
+                    <input type="text" required name="name" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-primary mb-1">> ROUTING_ADDRESS (EMAIL)</label>
+                    <input type="email" required name="email" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs text-primary mb-1">> PAYLOAD (MESSAGE)</label>
+                <textarea required name="message" rows="5" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm resize-none"></textarea>
+            </div>
+
+            <button type="submit" class="w-full border-2 border-primary text-primary hover:bg-primary hover:text-black font-bold py-4 transition-colors uppercase tracking-widest text-sm relative overflow-hidden group">
+                <span class="relative z-10">> TRANSMIT_DATA</span>
+            </button>
+            <div id="contact-status" class="text-xs text-center mt-2 hidden font-bold"></div>
+        </form>
+    </div>
+</section>
+
+</main>
+
+<footer class="border-t-2 border-surface-border bg-black py-8 text-center text-sm text-on-surface-variant">
+    <p>> &copy; 2024 DORKY BUILDS. ALL RIGHTS RESERVED.</p>
+    <p class="mt-2 text-xs">SYSTEM_STATUS: <span class="text-primary font-bold animate-pulse">ONLINE</span></p>
+</footer>
+
+<!-- CASE STUDY MODAL -->
+<div id="case-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="brutalist-border bg-surface w-full max-w-4xl max-h-[90vh] overflow-y-auto relative shadow-[0_0_30px_rgba(0,255,65,0.1)]">
+        <button onclick="closeModal()" class="absolute top-4 right-4 text-primary hover:text-white sticky float-right bg-black p-1 brutalist-border z-10">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+
+        <div class="p-8" id="modal-content">
+            <!-- Content injected via JS -->
+        </div>
+    </div>
+</div>
+
+<!-- TERMINAL OVERLAY -->
+<div id="terminal-overlay" class="fixed bottom-4 right-4 w-80 h-96 bg-black brutalist-border z-50 transform translate-y-[120%] transition-transform duration-300 flex flex-col shadow-[0_0_20px_rgba(0,255,65,0.2)] hidden sm:flex">
+    <div class="terminal-header cursor-move flex justify-between items-center" id="terminal-header">
+        <div class="flex items-center gap-2">
+            <div class="terminal-dot" style="background:#27c93f"></div>
+            <span>root@dorky-builds:~</span>
+        </div>
+        <button id="close-terminal" class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">close</span></button>
+    </div>
+    <div class="p-4 flex-grow overflow-y-auto text-xs" id="terminal-output">
+        <div class="text-primary mb-2">Dorky Builds OS v1.0.0</div>
+        <div class="text-on-surface-variant mb-4">Type 'help' to see available commands.</div>
+    </div>
+    <div class="p-2 border-t border-surface-border flex items-center gap-2 bg-surface">
+        <span class="text-primary">></span>
+        <input type="text" id="terminal-input" class="bg-transparent border-none outline-none w-full text-white text-xs font-mono" autocomplete="off" spellcheck="false">
+    </div>
+</div>
+
+<!-- FLOATING TERMINAL TOGGLE -->
+<button id="terminal-toggle" class="fixed bottom-4 right-4 z-40 bg-black brutalist-border p-3 text-primary hover:bg-primary hover:text-black transition-colors shadow-[0_0_10px_rgba(0,255,65,0.3)] hidden sm:block">
+    <span class="material-symbols-outlined">terminal</span>
+</button>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
