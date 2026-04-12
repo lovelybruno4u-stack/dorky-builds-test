@@ -163,7 +163,7 @@ pointer-events: none;
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Module 1 -->
-        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 cursor-pointer" onclick="openOnboarding('web_dev')">
             <div class="terminal-header">
                 <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_01.exe</span>
             </div>
@@ -180,7 +180,7 @@ pointer-events: none;
         </div>
 
         <!-- Module 2 -->
-        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 cursor-pointer" onclick="openOnboarding('ai_tools')">
             <div class="terminal-header">
                 <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_02.exe</span>
             </div>
@@ -197,7 +197,7 @@ pointer-events: none;
         </div>
 
         <!-- Module 3 -->
-        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 cursor-pointer" onclick="openOnboarding('automation')">
             <div class="terminal-header">
                 <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_03.exe</span>
             </div>
@@ -214,7 +214,7 @@ pointer-events: none;
         </div>
 
         <!-- Module 4 -->
-        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300">
+        <div class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 cursor-pointer" onclick="openOnboarding('student')">
             <div class="terminal-header">
                 <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_04.exe</span>
             </div>
@@ -414,13 +414,16 @@ pointer-events: none;
             <h2 class="text-3xl font-bold text-primary mb-6">> ORIGIN_STORY.txt</h2>
             <div class="prose prose-invert border-l-2 border-surface-border pl-6 space-y-4 text-on-surface-variant">
                 <p>
-                    Dorky Builds wasn't founded in a boardroom. It was compiled in late-night hackathons, fueled by caffeine and a relentless obsession with clean architecture.
+                    <span class="text-primary font-bold">Founder: Aayush Patil</span>
                 </p>
                 <p>
-                    We saw an industry bloated with slow, over-engineered solutions. Our vision? Strip away the cruft. Build tools that work. Deploy systems that scale. We operate like a tactical unit for code.
+                    Built by a student, for the world. [School Name Placeholder] alumni.
                 </p>
                 <p>
-                    <strong>Mission Directive:</strong> Deliver production-grade software with brutal efficiency. No fluff, just execution.
+                    Dorky Builds wasn't founded in a boardroom. It was compiled in late-night hackathons, fueled by caffeine and a relentless obsession with clean architecture. What started as side-projects evolved into a tactical unit for production code.
+                </p>
+                <p>
+                    <strong>Mission Directive:</strong> Strip away the cruft. Build tools that work. Deploy systems that scale. No fluff, just execution.
                 </p>
             </div>
         </div>
@@ -528,6 +531,10 @@ pointer-events: none;
                 <span class="text-on-surface-variant">contact.sh</span>
             </div>
 
+            <div class="mb-6 border-l-2 border-primary pl-4 text-sm">
+                <p><span class="text-on-surface-variant">Direct Email:</span> <a href="mailto:contact@aayushpatilofficial.online" class="text-primary hover:underline">contact@aayushpatilofficial.online</a></p>
+                <p><span class="text-on-surface-variant">Direct Comms:</span> <span class="text-primary">[ADD NUMBER PLACEHOLDER]</span></p>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-xs text-primary mb-1">> IDENTIFIER (NAME)</label>
@@ -568,6 +575,213 @@ pointer-events: none;
 
         <div class="p-8" id="modal-content">
             <!-- Content injected via JS -->
+        </div>
+    </div>
+</div>
+
+
+
+<!-- ONBOARDING MODAL FLOW -->
+<div id="onboarding-modal" class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-md hidden flex-col transition-opacity duration-300 opacity-0 overflow-y-auto">
+    <div class="w-full max-w-5xl mx-auto p-4 md:p-8 min-h-screen flex flex-col relative">
+        <button onclick="closeOnboarding()" class="absolute top-4 right-4 text-primary hover:text-white sticky float-right bg-black p-2 brutalist-border z-10 transition-colors">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+
+        <div class="mb-8 mt-4 border-b-2 border-surface-border pb-4 sticky top-0 bg-black/90 z-[5]">
+            <div class="flex justify-between items-center text-sm font-mono mb-2">
+                <span class="text-primary" id="step-indicator">> INIT_SEQUENCE</span>
+                <span class="text-on-surface-variant">STEP <span id="current-step-num">1</span>/3</span>
+            </div>
+            <div class="w-full h-1 bg-surface-border">
+                <div id="progress-bar" class="h-full bg-primary transition-all duration-300 w-1/3"></div>
+            </div>
+        </div>
+
+        <div class="flex-grow flex flex-col" id="onboarding-content">
+            <!-- Step 1: Project Type -->
+            <div id="step-1" class="step-container transition-all duration-300">
+                <h2 class="text-3xl font-bold text-white mb-2">> SELECT_PROJECT_TYPE</h2>
+                <p class="text-on-surface-variant mb-8">Define the parameters of your build.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="project-options">
+                    <!-- Injected via JS based on module -->
+                </div>
+            </div>
+
+            <!-- Step 2: Select Plan -->
+            <div id="step-2" class="step-container hidden transition-all duration-300">
+                <button onclick="goToStep(1)" class="text-on-surface-variant hover:text-primary mb-6 flex items-center gap-2 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span> > RETURN
+                </button>
+                <h2 class="text-3xl font-bold text-white mb-2">> ALLOCATE_RESOURCES</h2>
+                <p class="text-on-surface-variant mb-8">Select your compute tier and delivery SLA.</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Starter -->
+                    <div class="plan-card brutalist-border bg-surface p-6 cursor-pointer hover:border-primary transition-colors group" onclick="selectPlan('STARTER')">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold group-hover:text-primary transition-colors">🟢 STARTER</h3>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">₹999</div>
+                        <p class="text-xs text-on-surface-variant mb-4">2–3 days, basic build</p>
+                        <ul class="text-sm text-on-surface-variant space-y-2">
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Single Page</li>
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Basic UI</li>
+                        </ul>
+                    </div>
+
+                    <!-- Basic -->
+                    <div class="plan-card brutalist-border bg-surface p-6 cursor-pointer hover:border-primary transition-colors group" onclick="selectPlan('BASIC')">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold group-hover:text-primary transition-colors">🔵 BASIC</h3>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">₹2,999</div>
+                        <p class="text-xs text-on-surface-variant mb-4">3–5 days, simple site</p>
+                        <ul class="text-sm text-on-surface-variant space-y-2">
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Multi-page</li>
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Simple Forms</li>
+                        </ul>
+                    </div>
+
+                    <!-- Standard -->
+                    <div class="plan-card brutalist-border bg-surface p-6 cursor-pointer hover:border-primary transition-colors group" onclick="selectPlan('STANDARD')">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold group-hover:text-primary transition-colors">🟡 STANDARD</h3>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">₹4,999</div>
+                        <p class="text-xs text-on-surface-variant mb-4">5–7 days, better UI</p>
+                        <ul class="text-sm text-on-surface-variant space-y-2">
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Better UI/UX</li>
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Basic Backend</li>
+                        </ul>
+                    </div>
+
+                    <!-- Pro -->
+                    <div class="plan-card brutalist-border bg-black border-2 border-primary p-6 cursor-pointer relative shadow-[0_0_15px_rgba(0,255,65,0.15)] group transform hover:-translate-y-1 transition-all" onclick="selectPlan('PRO')">
+                        <div class="absolute -top-3 left-4 bg-primary text-black text-xs font-bold px-2 py-1 uppercase">Most Popular</div>
+                        <div class="flex justify-between items-start mb-4 mt-2">
+                            <h3 class="text-xl font-bold text-primary">🟠 PRO</h3>
+                            <span class="material-symbols-outlined text-primary">star</span>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">₹9,999</div>
+                        <p class="text-xs text-primary mb-4">7-10 days, advanced build</p>
+                        <ul class="text-sm text-on-surface-variant space-y-2">
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Full DB Integration</li>
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Advanced Animations</li>
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Auth System</li>
+                        </ul>
+                    </div>
+
+                    <!-- Advanced -->
+                    <div class="plan-card brutalist-border bg-surface p-6 cursor-pointer hover:border-primary transition-colors group" onclick="selectPlan('ADVANCED')">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold group-hover:text-primary transition-colors">🔴 ADVANCED</h3>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">₹14,999</div>
+                        <p class="text-xs text-on-surface-variant mb-4">10-14 days, robust system</p>
+                        <ul class="text-sm text-on-surface-variant space-y-2">
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Complex Architectures</li>
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Custom Integrations</li>
+                        </ul>
+                    </div>
+
+                    <!-- Elite -->
+                    <div class="plan-card brutalist-border bg-surface p-6 cursor-pointer hover:border-primary transition-colors group" onclick="selectPlan('ELITE')">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold group-hover:text-primary transition-colors">🟣 ELITE</h3>
+                        </div>
+                        <div class="text-3xl font-bold text-white mb-2">₹29,999+</div>
+                        <p class="text-xs text-on-surface-variant mb-4">Custom timeline, full-stack</p>
+                        <ul class="text-sm text-on-surface-variant space-y-2">
+                            <li class="flex gap-2"><span class="text-primary">✓</span> Scalable Infrastructure</li>
+                            <li class="flex gap-2"><span class="text-primary">✓</span> AI Integrations</li>
+                        </ul>
+                    </div>
+
+                    <!-- Enterprise -->
+                    <div class="plan-card brutalist-border bg-surface p-6 cursor-pointer hover:border-primary transition-colors group md:col-span-3" onclick="selectPlan('ENTERPRISE')">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold group-hover:text-primary transition-colors">⚫ ENTERPRISE</h3>
+                            <div class="text-3xl font-bold text-white">₹50,000+</div>
+                        </div>
+                        <p class="text-xs text-on-surface-variant mb-4">Dedicated team, massive scale</p>
+                        <p class="text-sm text-on-surface-variant">Complete custom agency solutions. Full dedicated resources. SLA guarantees.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Requirements Form -->
+            <div id="step-3" class="step-container hidden transition-all duration-300">
+                <button onclick="goToStep(2)" class="text-on-surface-variant hover:text-primary mb-6 flex items-center gap-2 text-sm transition-colors">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span> > RETURN
+                </button>
+                <h2 class="text-3xl font-bold text-white mb-2">> INPUT_REQUIREMENTS</h2>
+                <p class="text-on-surface-variant mb-8">Provide system parameters for initialization.</p>
+
+                <form id="requirements-form" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs text-primary mb-1">> IDENTIFIER (NAME)</label>
+                            <input type="text" required id="req-name" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-primary mb-1">> EMAIL</label>
+                            <input type="email" required id="req-email" value="contact@aayushpatilofficial.online" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-primary mb-1">> PHONE</label>
+                            <input type="tel" required id="req-phone" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-primary mb-1">> PROJECT_TYPE</label>
+                            <input type="text" readonly id="req-project" class="w-full bg-surface border border-surface-border p-3 text-on-surface-variant font-mono text-sm cursor-not-allowed">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-primary mb-1">> BUDGET_RANGE</label>
+                            <input type="text" required id="req-budget" placeholder="e.g. ₹10,000" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm transition-colors">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-primary mb-1">> TIMELINE</label>
+                            <input type="text" required id="req-timeline" placeholder="e.g. 2 weeks" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm transition-colors">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-primary mb-1">> CORE_FEATURES_NEEDED</label>
+                        <textarea required id="req-features" rows="4" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm resize-none transition-colors"></textarea>
+                    </div>
+
+                    <button type="submit" id="submit-requirements-btn" class="w-full bg-primary text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group">
+                        <span class="relative z-10">> EXECUTE_BUILD_COMMAND</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Step 4: Success Screen -->
+            <div id="step-4" class="step-container hidden flex-col items-center justify-center h-full min-h-[50vh] transition-all duration-300">
+                <div class="brutalist-border bg-black p-8 max-w-lg w-full relative shadow-[0_0_30px_rgba(0,255,65,0.2)] text-center">
+                    <span class="material-symbols-outlined text-6xl text-primary mb-4 block">check_circle</span>
+                    <h2 class="text-2xl font-bold text-white mb-2">REQUEST SUBMITTED</h2>
+                    <p class="text-on-surface-variant mb-6">Your system parameters have been logged.</p>
+
+                    <div class="bg-surface border border-surface-border p-4 mb-6">
+                        <div class="text-xs text-primary mb-1">REFERENCE ID</div>
+                        <div class="text-2xl font-bold font-mono text-white tracking-wider flex items-center justify-center gap-4">
+                            <span id="booking-id-display">DB-XXXXXX</span>
+                            <button onclick="copyBookingId()" class="text-on-surface-variant hover:text-primary transition-colors" title="Copy ID">
+                                <span class="material-symbols-outlined text-sm">content_copy</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-primary mb-8" id="copy-status"></p>
+
+                    <button onclick="closeOnboarding()" class="border-2 border-primary text-primary hover:bg-primary hover:text-black font-bold py-3 px-8 transition-colors uppercase tracking-widest text-sm w-full">
+                        > CLOSE_TERMINAL
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>

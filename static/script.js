@@ -371,3 +371,178 @@ if (applyForm) {
         }
     });
 }
+
+// --- MULTI-STEP ONBOARDING FLOW ---
+const onboardingModal = document.getElementById('onboarding-modal');
+const projectOptionsContainer = document.getElementById('project-options');
+const stepIndicator = document.getElementById('step-indicator');
+const currentStepNum = document.getElementById('current-step-num');
+const progressBar = document.getElementById('progress-bar');
+const requirementsForm = document.getElementById('requirements-form');
+
+let onboardingState = {
+    module: '',
+    projectType: '',
+    plan: ''
+};
+
+const moduleProjects = {
+    'web_dev': [
+        { id: 'business_website', name: 'Business Website', desc: 'Corporate presence & landing pages' },
+        { id: 'ecommerce', name: 'E-commerce Store', desc: 'Full online retail systems' },
+        { id: 'portfolio', name: 'Portfolio', desc: 'Personal branding & showcases' },
+        { id: 'custom_web_app', name: 'Custom Web App', desc: 'Complex interactive applications' }
+    ],
+    'ai_tools': [
+        { id: 'chatbot', name: 'Chatbot', desc: 'Intelligent conversational agents' },
+        { id: 'ai_tool', name: 'AI Tool', desc: 'Custom LLM-powered utilities' },
+        { id: 'automation_ai', name: 'Automation AI', desc: 'AI-driven workflow systems' }
+    ],
+    'automation': [
+        { id: 'bots', name: 'Bots', desc: 'Automated task execution' },
+        { id: 'scripts', name: 'Scripts', desc: 'Data processing & utilities' },
+        { id: 'workflow', name: 'Workflow Automation', desc: 'Connecting APIs and services' }
+    ],
+    'student': [
+        { id: 'school_project', name: 'School Project', desc: 'Academic assignments & thesis' },
+        { id: 'student_portfolio', name: 'Portfolio', desc: 'Early-career showcase' },
+        { id: 'learning_project', name: 'Learning Project', desc: 'Mentored builds' }
+    ]
+};
+
+function openOnboarding(moduleKey) {
+    if (!onboardingModal) return;
+
+    // Reset state
+    onboardingState = { module: moduleKey, projectType: '', plan: '' };
+
+    // Populate Step 1 Options
+    if (projectOptionsContainer && moduleProjects[moduleKey]) {
+        projectOptionsContainer.innerHTML = moduleProjects[moduleKey].map(proj => `
+            <div class="brutalist-border bg-surface p-4 cursor-pointer hover:border-primary transition-colors group" onclick="selectProjectType('${proj.name}')">
+                <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">> ${proj.name}</h3>
+                <p class="text-sm text-on-surface-variant">${proj.desc}</p>
+            </div>
+        `).join('');
+    }
+
+    goToStep(1);
+
+    // Show modal
+    onboardingModal.classList.remove('hidden');
+    // Trigger reflow
+    void onboardingModal.offsetWidth;
+    onboardingModal.classList.remove('opacity-0');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeOnboarding() {
+    if (!onboardingModal) return;
+    onboardingModal.classList.add('opacity-0');
+    setTimeout(() => {
+        onboardingModal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }, 300);
+}
+
+function goToStep(stepNum) {
+    // Update UI
+    document.querySelectorAll('.step-container').forEach(el => {
+        el.classList.add('hidden');
+        el.classList.remove('flex');
+    });
+
+    const targetStep = document.getElementById(`step-${stepNum}`);
+    if (targetStep) {
+        targetStep.classList.remove('hidden');
+        if (stepNum === 4) {
+            targetStep.classList.add('flex'); // Success step needs flex
+        }
+    }
+
+    // Update Header indicators
+    if (stepIndicator && currentStepNum && progressBar) {
+        currentStepNum.innerText = stepNum > 3 ? 3 : stepNum; // Cap at 3 for UI
+        if (stepNum === 1) {
+            stepIndicator.innerText = '> SELECT_PROJECT';
+            progressBar.style.width = '33%';
+        } else if (stepNum === 2) {
+            stepIndicator.innerText = '> ALLOCATE_PLAN';
+            progressBar.style.width = '66%';
+        } else if (stepNum === 3) {
+            stepIndicator.innerText = '> INPUT_SPECS';
+            progressBar.style.width = '100%';
+        }
+    }
+}
+
+function selectProjectType(projectName) {
+    onboardingState.projectType = projectName;
+    const reqProjectInput = document.getElementById('req-project');
+    if (reqProjectInput) {
+        reqProjectInput.value = projectName;
+    }
+    goToStep(2);
+}
+
+function selectPlan(planName) {
+    onboardingState.plan = planName;
+    goToStep(3);
+}
+
+// Handle requirements form submission
+if (requirementsForm) {
+    requirementsForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const btn = document.getElementById('submit-requirements-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="relative z-10">> TRANSMITTING TO SERVER...</span>';
+        btn.classList.add('animate-pulse');
+
+        const formData = new FormData();
+        formData.append('name', document.getElementById('req-name').value);
+        formData.append('email', document.getElementById('req-email').value);
+        formData.append('phone', document.getElementById('req-phone').value);
+        formData.append('projectType', onboardingState.projectType);
+        formData.append('plan', onboardingState.plan);
+        formData.append('budget', document.getElementById('req-budget').value);
+        formData.append('timeline', document.getElementById('req-timeline').value);
+        formData.append('features', document.getElementById('req-features').value);
+
+        try {
+            const response = await fetch('/submit-requirements', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                const bookingDisplay = document.getElementById('booking-id-display');
+                if (bookingDisplay) {
+                    bookingDisplay.innerText = result.booking_id;
+                }
+                goToStep(4);
+            }
+        } catch (error) {
+            console.error("Transmission error:", error);
+            alert("Error communicating with server. Please try again.");
+        } finally {
+            btn.innerHTML = originalText;
+            btn.classList.remove('animate-pulse');
+        }
+    });
+}
+
+function copyBookingId() {
+    const bookingId = document.getElementById('booking-id-display').innerText;
+    navigator.clipboard.writeText(bookingId).then(() => {
+        const statusEl = document.getElementById('copy-status');
+        if (statusEl) {
+            statusEl.innerText = "> COPIED TO CLIPBOARD";
+            setTimeout(() => {
+                statusEl.innerText = "";
+            }, 3000);
+        }
+    });
+}
