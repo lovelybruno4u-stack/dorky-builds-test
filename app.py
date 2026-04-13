@@ -4,11 +4,12 @@ import random
 import string
 import csv
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dorky_builds_super_secret_dev_key")
 
 # Try to set up Google Sheets using ENV VARIABLES
 SHEET_CONNECTED = False
@@ -308,6 +309,98 @@ def api_approve(booking_id):
         return jsonify({"status": "success", "message": "Project approved successfully."})
     else:
         return jsonify({"status": "error", "message": "Failed to approve project."}), 500
+
+
+# --- ADMIN AUTHENTICATION ---
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "DorkyAdmin2024!")
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session['is_admin'] = True
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return render_template('admin_login.html', error="Invalid credentials")
+
+    if session.get('is_admin'):
+        return redirect(url_for('admin_dashboard'))
+
+    return render_template('admin_login.html')
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('is_admin', None)
+    return redirect(url_for('index'))
+
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    if not session.get('is_admin'):
+        return redirect(url_for('admin_login'))
+
+    # Fetch all orders to display
+    orders = []
+    if SHEET_CONNECTED:
+        records = get_google_sheet_records()
+        orders = list(reversed(records)) # Show newest first
+    else:
+        orders = list(reversed(fetch_orders_from_csv()))
+
+    return render_template('admin_dashboard.html', orders=orders)
+
+@app.route('/api/admin/update_order', methods=['POST'])
+def api_admin_update_order():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+
+    data = request.json or {}
+    booking_id = data.get('booking_id')
+
+    if not booking_id:
+        return jsonify({"status": "error", "message": "Booking ID required"}), 400
+
+    updates = {}
+    if 'status' in data: updates['status'] = data['status']
+    if 'preview_link' in data: updates['preview_link'] = data['preview_link']
+    if 'payment_status' in data: updates['payment_status'] = data['payment_status']
+
+    if not updates:
+        return jsonify({"status": "error", "message": "No updates provided"}), 400
+
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    updates['last_updated'] = current_time
+
+    success = False
+
+    if SHEET_CONNECTED:
+        try:
+            cell = sheet.find(booking_id)
+            if cell:
+                row_idx = cell.row
+                headers = sheet.row_values(1)
+
+                for key, value in updates.items():
+                    col_idx = headers.index(key) + 1
+                    sheet.update_cell(row_idx, col_idx, value)
+
+                success = True
+            else:
+                return jsonify({"status": "error", "message": "Order not found"}), 404
+        except Exception as e:
+            print(f"Google Sheets update error: {e}")
+
+    # Fallback/Mirror
+    csv_updated = update_csv_order(booking_id, updates)
+
+    if success or csv_updated:
+        return jsonify({"status": "success", "message": "Order updated successfully."})
+    else:
+        return jsonify({"status": "error", "message": "Failed to update order."}), 500
+
+# --- END ADMIN ---
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

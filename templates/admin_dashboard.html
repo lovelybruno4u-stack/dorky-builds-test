@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ADMIN DASHBOARD -->
+<section id="admin-dashboard" class="py-12 md:py-24 min-h-[70vh] flex flex-col">
+    <div class="mb-12 flex justify-between items-center w-full">
+        <div>
+            <h2 class="text-3xl font-bold text-red-500 mb-2">> ROOT_CONSOLE.exe</h2>
+            <p class="text-on-surface-variant text-lg">System administrator controls.</p>
+        </div>
+        <a href="/admin/logout" class="text-red-500 hover:text-white transition-colors border-2 border-red-500 hover:border-white px-4 py-2 font-bold uppercase tracking-widest text-xs">
+            [ TERMINATE_SESSION ]
+        </a>
+    </div>
+
+    <div class="w-full flex-col">
+        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> GLOBAL_ORDERS</h3>
+
+        {% if orders %}
+        <div class="overflow-x-auto brutalist-border bg-surface border-surface-border">
+            <table class="w-full text-left font-mono text-xs">
+                <thead class="bg-black text-on-surface-variant border-b border-surface-border">
+                    <tr>
+                        <th class="p-4">ID</th>
+                        <th class="p-4">Client</th>
+                        <th class="p-4">Project</th>
+                        <th class="p-4">Speed / Status</th>
+                        <th class="p-4 w-1/3">Admin Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border">
+                    {% for order in orders %}
+                    <tr class="hover:bg-black/50 transition-colors">
+                        <td class="p-4 font-bold text-primary">{{ order.get('booking_id') or order.get('Booking ID') }}</td>
+                        <td class="p-4">
+                            <div class="text-white">{{ order.get('name') or order.get('Name') }}</div>
+                            <div class="text-on-surface-variant">{{ order.get('email') or order.get('Email') }}</div>
+                        </td>
+                        <td class="p-4">
+                            <div class="text-white">{{ order.get('project_type') or order.get('Project Type') }}</div>
+                            <div class="text-on-surface-variant">{{ order.get('plan') or order.get('Plan') }}</div>
+                        </td>
+                        <td class="p-4">
+                            {% set status = order.get('status') or order.get('Status') %}
+                            <div class="text-white mb-1">Spd: {{ order.get('delivery_speed') or order.get('Delivery Speed') }}</div>
+                            <span class="px-2 py-1 bg-black border border-surface-border inline-block {{ 'text-primary' if status == 'REQUESTED' else 'text-yellow-400' if status == 'IN_PROGRESS' else 'text-blue-400' if status == 'PREVIEW_READY' else 'text-purple-400' if status == 'APPROVED' else 'text-green-500' }}">
+                                {{ status }}
+                            </span>
+                        </td>
+                        <td class="p-4">
+                            <div class="flex flex-col gap-2 admin-form" data-id="{{ order.get('booking_id') or order.get('Booking ID') }}">
+                                <select name="status" class="w-full bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
+                                    <option value="REQUESTED" {% if status == 'REQUESTED' %}selected{% endif %}>REQUESTED</option>
+                                    <option value="IN_PROGRESS" {% if status == 'IN_PROGRESS' %}selected{% endif %}>IN_PROGRESS</option>
+                                    <option value="PREVIEW_READY" {% if status == 'PREVIEW_READY' %}selected{% endif %}>PREVIEW_READY</option>
+                                    <option value="APPROVED" {% if status == 'APPROVED' %}selected{% endif %}>APPROVED</option>
+                                    <option value="DELIVERED" {% if status == 'DELIVERED' %}selected{% endif %}>DELIVERED</option>
+                                </select>
+
+                                <input type="text" name="preview_link" placeholder="Preview Link URL" value="{{ order.get('preview_link') or order.get('Preview Link') }}" class="w-full bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
+
+                                <div class="flex gap-2">
+                                    <select name="payment_status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
+                                        <option value="PENDING" {% if order.get('payment_status') == 'PENDING' or order.get('Payment Status') == 'PENDING' %}selected{% endif %}>PENDING</option>
+                                        <option value="DONE" {% if order.get('payment_status') == 'DONE' or order.get('Payment Status') == 'DONE' %}selected{% endif %}>DONE</option>
+                                    </select>
+                                    <button type="button" onclick="updateOrder(this)" class="w-1/2 bg-red-500 text-black font-bold py-2 hover:bg-white transition-colors text-xs">
+                                        SAVE
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="brutalist-border bg-black p-8 text-center text-on-surface-variant my-8">
+            <p>> No records found in database.</p>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+async function updateOrder(btn) {
+    const container = btn.closest('.admin-form');
+    const bookingId = container.getAttribute('data-id');
+    const status = container.querySelector('select[name="status"]').value;
+    const previewLink = container.querySelector('input[name="preview_link"]').value;
+    const paymentStatus = container.querySelector('select[name="payment_status"]').value;
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch('/api/admin/update_order', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                booking_id: bookingId,
+                status: status,
+                preview_link: previewLink,
+                payment_status: paymentStatus
+            })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            if(window.showToast) window.showToast('Record updated.', 'success');
+            btn.innerHTML = 'OK';
+            setTimeout(() => { btn.innerHTML = 'SAVE'; btn.disabled = false; }, 2000);
+        } else {
+            if(window.showToast) window.showToast('Error updating record.', 'error');
+            btn.innerHTML = 'ERR';
+            btn.classList.replace('bg-red-500', 'bg-red-700');
+            setTimeout(() => { btn.innerHTML = 'SAVE'; btn.disabled = false; btn.classList.replace('bg-red-700', 'bg-red-500'); }, 2000);
+        }
+    } catch (e) {
+        console.error(e);
+        btn.innerHTML = 'FAIL';
+        setTimeout(() => { btn.innerHTML = 'SAVE'; btn.disabled = false; }, 2000);
+    }
+}
+</script>
+{% endblock %}

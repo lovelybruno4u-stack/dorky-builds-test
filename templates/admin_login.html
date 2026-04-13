@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ADMIN LOGIN -->
+<section id="admin-login" class="py-24 border-b-2 border-surface-border min-h-[70vh] flex flex-col items-center justify-center">
+    <div class="w-full max-w-md brutalist-border bg-surface p-8 text-center shadow-[0_0_30px_rgba(255,0,0,0.1)]">
+        <div class="terminal-header -mt-8 -mx-8 mb-8 border-x-2 border-t-2 border-surface-border">
+            <span class="text-on-surface-variant">sudo_login.sh</span>
+        </div>
+
+        <span class="material-symbols-outlined text-6xl text-red-500 mb-4 block">admin_panel_settings</span>
+        <h2 class="text-3xl font-bold text-white mb-2">> ROOT_ACCESS</h2>
+        <p class="text-on-surface-variant text-sm mb-8 border-b border-surface-border pb-8">
+            Restricted zone. Unauthorized access strictly prohibited.
+        </p>
+
+        {% if error %}
+        <div class="bg-red-500/10 border border-red-500 text-red-500 p-3 text-sm font-mono mb-6">
+            > ERR: {{ error }}
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/admin/login" class="space-y-4">
+            <div>
+                <input type="text" name="username" placeholder="> USERNAME" required class="w-full bg-black border border-surface-border p-4 text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono text-sm uppercase tracking-widest transition-colors">
+            </div>
+            <div>
+                <input type="password" name="password" placeholder="> PASSWORD" required class="w-full bg-black border border-surface-border p-4 text-white focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500 font-mono text-sm tracking-widest transition-colors">
+            </div>
+            <button type="submit" class="w-full bg-red-500 text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group mt-4">
+                <span class="relative z-10">> AUTHENTICATE</span>
+            </button>
+        </form>
+    </div>
+</section>
+{% endblock %}
