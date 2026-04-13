@@ -581,3 +581,39 @@ function copyBookingId() {
         }
     });
 }
+
+// --- SCROLL PROGRESS & REVEAL ANIMATIONS (ABOUT PAGE) ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Progress Bar
+    const originProgressBar = document.getElementById('origin-progress-bar');
+    if (originProgressBar) {
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+            const progress = (scrollTop / scrollHeight) * 100;
+            originProgressBar.style.width = progress + '%';
+        });
+    }
+
+    // Section Reveal on Scroll
+    const revealElements = document.querySelectorAll('.reveal-section');
+    if (revealElements.length > 0) {
+        const revealOptions = {
+            threshold: 0.15,
+            rootMargin: "0px 0px -50px 0px"
+        };
+
+        const revealObserver = new IntersectionObserver(function(entries, observer) {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+
+                entry.target.classList.add('is-visible');
+                observer.unobserve(entry.target); // Only animate once
+            });
+        }, revealOptions);
+
+        revealElements.forEach(el => {
+            revealObserver.observe(el);
+        });
+    }
+});

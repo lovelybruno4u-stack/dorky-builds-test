@@ -1,120 +1,241 @@
 {% extends "base.html" %}
 
 {% block content %}
-<!-- PIPELINE -->
-<section id="pipeline" class="py-12 md:py-24 border-b-2 border-surface-border">
-    <div class="mb-12">
-        <h2 class="text-3xl font-bold text-primary mb-2">> EXECUTION_PIPELINE.sh</h2>
-        <p class="text-on-surface-variant">Standard operating procedure for project compilation.</p>
+<!-- SCROLL PROGRESS INDICATOR -->
+<div class="fixed top-[74px] left-0 w-full h-1 z-50 pointer-events-none">
+    <div id="origin-progress-bar" class="h-full bg-primary w-0 transition-all duration-150"></div>
+</div>
+
+<!-- 1. HERO SECTION -->
+<section id="hero" class="min-h-[70vh] flex flex-col justify-center border-b-2 border-surface-border pb-16 relative reveal-section">
+    <div class="brutalist-border bg-surface p-1 mb-8 max-w-fit mx-auto md:mx-0">
+        <div class="terminal-header">
+            <div class="flex gap-2">
+                <div class="terminal-dot" style="background:#ff5f56"></div>
+                <div class="terminal-dot" style="background:#ffbd2e"></div>
+                <div class="terminal-dot" style="background:#27c93f"></div>
+            </div>
+            <span>origin.sh</span>
+        </div>
+        <div class="p-6 md:p-12 bg-black text-center md:text-left relative overflow-hidden">
+            <div class="absolute top-4 right-4 bg-primary text-black text-xs font-bold px-3 py-1 uppercase tracking-wider z-10 hidden sm:block">
+                15-Year-Old Founder
+            </div>
+            <h1 class="text-4xl md:text-6xl font-bold tracking-tighter uppercase mb-6 text-white leading-tight">
+                Built from Curiosity.<br>
+                <span class="text-primary">Driven by Purpose.</span><span class="animate-pulse">_</span>
+            </h1>
+            <p class="text-on-surface-variant text-lg md:text-xl max-w-3xl border-l-2 border-surface-border pl-4 mx-auto md:mx-0">
+                Dorky Builds started with a 15-year-old student who wanted to understand how the internet really works — and turned that curiosity into something bigger.
+            </p>
+        </div>
     </div>
+</section>
 
-    <div class="relative">
-        <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-surface-border -translate-x-1/2"></div>
+<!-- 2. WHERE IT ALL STARTED -->
+<section class="py-20 border-b-2 border-surface-border reveal-section relative overflow-hidden">
+    <div class="absolute right-0 top-1/2 opacity-5 pointer-events-none text-[15rem] font-bold text-primary -translate-y-1/2 translate-x-1/4 font-mono leading-none hidden lg:block">01</div>
+    <div class="max-w-4xl relative z-10">
+        <h2 class="text-3xl font-bold text-white mb-8">> WHERE_IT_ALL_STARTED</h2>
+        <div class="space-y-6 text-on-surface-variant text-lg border-l-2 border-primary pl-6">
+            <p>
+                Aayush Patil, a Class 10 student, began his journey by exploring the fundamentals of web development — experimenting with HTML, CSS, and JavaScript.
+            </p>
+            <p>
+                What started as curiosity quickly became something more.
+            </p>
+            <p>
+                Late nights turned into learning sessions. Small experiments turned into real projects.<br>
+                And simple ideas started becoming working digital products — including interactive websites and early AI-based tools.
+            </p>
+        </div>
+    </div>
+</section>
 
-        <div class="space-y-12">
-            <!-- Step 1 -->
-            <div class="relative flex flex-col md:flex-row items-center md:justify-between group">
-                <div class="md:w-5/12 text-center md:text-right mb-4 md:mb-0">
-                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">SCAN_ENV</h3>
-                    <p class="text-on-surface-variant text-sm mt-2">Deep analysis of requirements, architecture planning, and feasibility assessment. No code until the blueprint is flawless.</p>
-                </div>
-                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">01</div>
-                <div class="md:w-5/12"></div>
+<!-- 3. THE REALIZATION -->
+<section class="py-20 border-b-2 border-surface-border reveal-section relative overflow-hidden">
+    <div class="absolute right-0 top-1/2 opacity-5 pointer-events-none text-[15rem] font-bold text-white -translate-y-1/2 translate-x-1/4 font-mono leading-none hidden lg:block">02</div>
+    <div class="max-w-4xl ml-auto text-right relative z-10">
+        <h2 class="text-3xl font-bold text-white mb-8">THE_REALIZATION <</h2>
+        <div class="space-y-6 text-on-surface-variant text-lg border-r-2 border-primary pr-6 inline-block text-left md:text-right w-full">
+            <p>
+                During this journey, one thing became clear.
+            </p>
+            <p>
+                Many people — especially students, creators, and small businesses — had powerful ideas, but no way to bring them to life.
+            </p>
+            <p>
+                Most solutions were either:
+            </p>
+            <ul class="list-none space-y-2 inline-block text-left text-primary font-mono text-sm mb-4">
+                <li>> Too expensive</li>
+                <li>> Too complex</li>
+                <li>> Or not built for them</li>
+            </ul>
+            <p class="font-bold text-white">
+                That gap needed to be solved.
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- 4. FROM LEARNING TO BUILDING -->
+<section class="py-20 border-b-2 border-surface-border reveal-section relative overflow-hidden">
+    <div class="absolute right-0 top-1/2 opacity-5 pointer-events-none text-[15rem] font-bold text-primary -translate-y-1/2 translate-x-1/4 font-mono leading-none hidden lg:block">03</div>
+    <div class="max-w-4xl relative z-10">
+        <h2 class="text-3xl font-bold text-white mb-8">> FROM_LEARNING_TO_BUILDING</h2>
+        <div class="space-y-6 text-on-surface-variant text-lg border-l-2 border-primary pl-6">
+            <p>
+                Instead of waiting, Aayush started building.
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 my-8 font-mono text-sm text-center">
+                <div class="brutalist-border bg-black p-4 text-primary hover:bg-surface transition-colors">Working on real projects locally.</div>
+                <div class="brutalist-border bg-black p-4 text-primary hover:bg-surface transition-colors">Testing ideas with real users.</div>
+                <div class="brutalist-border bg-black p-4 text-primary hover:bg-surface transition-colors">Improving with every version.</div>
             </div>
+            <p class="font-bold text-white text-xl">
+                Each project wasn’t just work — it was growth.
+            </p>
+        </div>
+    </div>
+</section>
 
-            <!-- Step 2 -->
-            <div class="relative flex flex-col md:flex-row-reverse items-center md:justify-between group">
-                <div class="md:w-5/12 text-center md:text-left mb-4 md:mb-0">
-                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">BUILD_PROTO</h3>
-                    <p class="text-on-surface-variant text-sm mt-2">Rapid construction of core systems. Minimum Viable Product deployed for immediate feedback loop.</p>
-                </div>
-                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">02</div>
-                <div class="md:w-5/12"></div>
-            </div>
+<!-- 5. BIRTH OF DORKY BUILDS -->
+<section class="py-24 border-b-2 border-surface-border reveal-section bg-surface/30">
+    <div class="max-w-5xl mx-auto text-center">
+        <h2 class="text-sm font-mono text-on-surface-variant tracking-widest uppercase mb-4">> Turning Vision into Reality</h2>
 
-            <!-- Step 3 -->
-            <div class="relative flex flex-col md:flex-row items-center md:justify-between group">
-                <div class="md:w-5/12 text-center md:text-right mb-4 md:mb-0">
-                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">TEST_SYSTEM</h3>
-                    <p class="text-on-surface-variant text-sm mt-2">Rigorous stress testing, security audits, and performance optimization. Breaking things in dev so they survive in prod.</p>
-                </div>
-                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">03</div>
-                <div class="md:w-5/12"></div>
-            </div>
+        <div class="brutalist-border bg-black p-8 md:p-16 my-8 relative shadow-[0_0_30px_rgba(0,255,65,0.1)] hover:shadow-[0_0_50px_rgba(0,255,65,0.2)] transition-shadow duration-500 group">
+            <h3 class="text-3xl md:text-5xl font-bold text-primary mb-8 leading-tight group-hover:scale-105 transition-transform duration-500">
+                That’s how Dorky Builds<br>was created.
+            </h3>
 
-            <!-- Step 4 -->
-            <div class="relative flex flex-col md:flex-row-reverse items-center md:justify-between group">
-                <div class="md:w-5/12 text-center md:text-left mb-4 md:mb-0">
-                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">PUSH_PROD</h3>
-                    <p class="text-on-surface-variant text-sm mt-2">Final deployment to live servers. Continuous monitoring established. System operational.</p>
-                </div>
-                <div class="z-10 w-12 h-12 rounded-full bg-primary border-2 border-primary flex items-center justify-center text-black font-bold shadow-[0_0_15px_rgba(0,255,65,0.4)]">04</div>
-                <div class="md:w-5/12"></div>
+            <div class="text-on-surface-variant text-lg max-w-2xl mx-auto space-y-6">
+                <p>
+                    A platform focused on building modern, high-quality digital solutions that are accessible, practical, and impactful.
+                </p>
+                <p>
+                    From websites to smart tools — including AI-powered features — Dorky Builds exists to turn ideas into reality.
+                </p>
             </div>
         </div>
     </div>
 </section>
 
-<!-- ORIGIN / ABOUT -->
-<section id="origin" class="py-24 border-b-2 border-surface-border">
-    <div class="flex flex-col md:flex-row gap-12">
-        <div class="md:w-1/2">
-            <h2 class="text-3xl font-bold text-primary mb-6">> ORIGIN_STORY.txt</h2>
-            <div class="prose prose-invert border-l-2 border-surface-border pl-6 space-y-4 text-on-surface-variant">
-                <p>
-                    <span class="text-primary font-bold">Founder: Ayush Patel</span><br>
-                    <span class="text-sm">Role: Student Builder</span>
-                </p>
-                <p>
-                    <span class="text-white">[School Name Placeholder]</span> alumni.
-                </p>
-                <p>
-                    “I started Dorky Builds to help people who have ideas but don’t understand AI or tech. We build everything for them — simply, affordably, and fast.”
-                </p>
-            </div>
+<!-- 6. CURRENT STAGE -->
+<section class="py-20 border-b-2 border-surface-border reveal-section relative overflow-hidden">
+    <div class="max-w-4xl mx-auto text-center relative z-10">
+        <h2 class="text-3xl font-bold text-white mb-8">> JUST_GETTING_STARTED</h2>
+        <div class="text-on-surface-variant text-xl">
+            <p class="mb-6">Dorky Builds is still in its early stage.</p>
+            <p class="font-mono text-primary text-sm space-y-2 flex flex-col items-center">
+                <span>[ OK ] The foundation is strong.</span>
+                <span>[ OK ] The vision is clear.</span>
+                <span>[ OK ] And the journey has only begun.</span>
+            </p>
         </div>
-        <div class="md:w-1/2 brutalist-border bg-black p-6 relative overflow-hidden">
-            <div class="absolute right-0 top-0 opacity-10 pointer-events-none text-9xl font-bold text-primary -translate-y-8 translate-x-8">DB</div>
-            <div class="relative z-10">
-                <h3 class="text-xl font-bold mb-4 text-white">TIMELINE</h3>
-                <ul class="space-y-4">
-                    <li class="flex gap-4">
-                        <span class="text-primary font-bold">2022</span>
-                        <span class="text-on-surface-variant">System initialized. First scripts written.</span>
-                    </li>
-                    <li class="flex gap-4">
-                        <span class="text-primary font-bold">2023</span>
-                        <span class="text-on-surface-variant">Agency core compiled. Delivered 20+ web solutions.</span>
-                    </li>
-                    <li class="flex gap-4">
-                        <span class="text-primary font-bold">2024</span>
-                        <span class="text-on-surface-variant">AI integration layer added. Scaled operations globally.</span>
-                    </li>
-                </ul>
+    </div>
+</section>
+
+<!-- 7. FOUNDER NOTE -->
+<section class="py-24 border-b-2 border-surface-border reveal-section">
+    <div class="mb-12 text-center md:text-left">
+        <h2 class="text-3xl font-bold text-primary mb-2">> A_NOTE_FROM_THE_FOUNDER</h2>
+    </div>
+
+    <div class="flex flex-col lg:flex-row gap-12 items-center lg:items-stretch">
+        <!-- Text Content -->
+        <div class="lg:w-3/5 space-y-6 text-on-surface-variant text-lg">
+            <p class="text-2xl font-bold text-white mb-4">Hi, I’m Aayush.</p>
+
+            <p>
+                I’m currently a 15-year-old student, still in school — learning not just from books, but by building real things, solving real problems, and constantly experimenting.
+            </p>
+
+            <p>
+                Dorky Builds isn’t backed by a big team or a large company.
+            </p>
+
+            <div class="brutalist-border border-l-4 border-l-primary bg-black p-6 my-6 italic text-sm md:text-base">
+                "It’s being built step by step — alongside school — with late nights, consistency, and a genuine passion for creating something meaningful."
+            </div>
+
+            <p>
+                Every feature, every project, every improvement you see here is part of that journey.
+            </p>
+
+            <p class="font-bold text-white">
+                This is just the beginning.<br>
+                <span class="text-primary font-mono font-normal text-sm mt-2 inline-block">> And your support truly matters.</span>
+            </p>
+        </div>
+
+        <!-- Image Placeholder -->
+        <div class="lg:w-2/5 w-full max-w-sm mx-auto flex items-center justify-center">
+            <div class="brutalist-border bg-surface p-2 w-full aspect-[3/4] relative group shadow-[0_0_15px_rgba(0,0,0,0.5)] hover:shadow-[0_0_25px_rgba(0,255,65,0.3)] transition-all duration-500 transform hover:-translate-y-2 flex flex-col items-center justify-center text-center overflow-hidden">
+                <!-- Inner black box matching theme -->
+                <div class="w-full h-full bg-black border-2 border-surface-border flex flex-col items-center justify-center p-6 relative overflow-hidden group-hover:border-primary transition-colors duration-500">
+
+                    <!-- Decorative scanline inside image box -->
+                    <div class="absolute inset-0 w-full h-[2px] bg-primary/20 animate-[scan_3s_linear_infinite] hidden group-hover:block pointer-events-none"></div>
+
+                    <span class="material-symbols-outlined text-6xl text-surface-border mb-4 group-hover:text-primary transition-colors duration-500">account_box</span>
+                    <h3 class="text-on-surface-variant font-mono text-sm uppercase tracking-widest group-hover:text-white transition-colors duration-500">Founder Image</h3>
+                    <p class="text-primary font-bold mt-2 animate-pulse">Coming Soon</p>
+
+                    <!-- decorative dots -->
+                    <div class="absolute bottom-4 right-4 flex gap-1">
+                        <div class="w-1 h-1 bg-surface-border group-hover:bg-primary transition-colors"></div>
+                        <div class="w-1 h-1 bg-surface-border group-hover:bg-primary transition-colors delay-100"></div>
+                        <div class="w-1 h-1 bg-surface-border group-hover:bg-primary transition-colors delay-200"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- STATS -->
-<section id="stats" class="py-16 border-b-2 border-surface-border bg-surface/50">
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-        <div>
-            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="150">0</span>+</div>
-            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Deployments</div>
-        </div>
-        <div>
-            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="99">0</span>%</div>
-            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Uptime</div>
-        </div>
-        <div>
-            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="42">0</span></div>
-            <div class="text-sm text-on-surface-variant uppercase tracking-wider">AI Agents Built</div>
-        </div>
-        <div>
-            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="10">0</span>K</div>
-            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Commits</div>
+<!-- 8. CTA SECTION -->
+<section class="py-24 reveal-section text-center">
+    <div class="max-w-2xl mx-auto">
+        <h2 class="text-4xl font-bold text-white mb-6 uppercase">Be Part of the Journey</h2>
+
+        <p class="text-on-surface-variant text-lg mb-8 font-mono border-t border-b border-surface-border py-6">
+            Whether you:<br>
+            <span class="text-primary">> Build with us</span><br>
+            <span class="text-primary">> Share your ideas</span><br>
+            <span class="text-primary">> Or support the vision</span><br>
+            <br>
+            You’re helping shape something bigger.
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/services" class="bg-primary text-black font-bold py-4 px-8 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group">
+                <span class="relative z-10">> START_A_PROJECT</span>
+            </a>
+            <a href="/contact" class="border-2 border-surface-border text-white font-bold py-4 px-8 hover:border-primary hover:text-primary transition-colors uppercase tracking-widest text-sm relative overflow-hidden group">
+                <span class="relative z-10">[ SHARE_FEEDBACK ]</span>
+            </a>
         </div>
     </div>
 </section>
+
+<style>
+    /* CSS for reveal animations */
+    .reveal-section {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.8s ease-out;
+    }
+
+    .reveal-section.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    @keyframes scan {
+        0% { top: 0%; }
+        100% { top: 100%; }
+    }
+</style>
 {% endblock %}
