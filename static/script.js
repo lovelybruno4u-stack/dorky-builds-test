@@ -31,9 +31,7 @@ const animateCounters = () => {
             const inc = target / speed;
 
             if (count < target) {
-                // Add inc to count and output in counter
                 counter.innerText = Math.ceil(count + inc);
-                // Call function every ms
                 setTimeout(updateCount, 10);
             } else {
                 counter.innerText = target;
@@ -52,7 +50,6 @@ const animateCounters = () => {
     });
 }
 document.addEventListener('DOMContentLoaded', animateCounters);
-
 
 // --- CURSOR GLOW ---
 const cursorGlow = document.getElementById('cursor-glow');
@@ -81,9 +78,11 @@ if(scanline) {
 // --- SMOOTH SCROLLING ---
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', function (e) {
-        e.preventDefault();
+        if(this.getAttribute('href') === '#') return;
+
         const target = document.querySelector(this.getAttribute('href'));
         if (target) {
+            e.preventDefault();
             target.scrollIntoView({
                 behavior: 'smooth'
             });
@@ -114,29 +113,31 @@ if (mobileMenuBtn && closeMenuBtn && mobileNav) {
 const filterBtns = document.querySelectorAll('.filter-btn');
 const projectCards = document.querySelectorAll('.project-card');
 
-filterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Remove active class from all
-        filterBtns.forEach(b => {
-            b.classList.remove('active', 'text-white');
-            b.classList.add('text-on-surface-variant');
-        });
+if (filterBtns.length > 0) {
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all
+            filterBtns.forEach(b => {
+                b.classList.remove('active', 'text-white');
+                b.classList.add('text-on-surface-variant');
+            });
 
-        // Add active class to clicked
-        btn.classList.add('active', 'text-white');
-        btn.classList.remove('text-on-surface-variant');
+            // Add active class to clicked
+            btn.classList.add('active', 'text-white');
+            btn.classList.remove('text-on-surface-variant');
 
-        const filterValue = btn.getAttribute('data-filter');
+            const filterValue = btn.getAttribute('data-filter');
 
-        projectCards.forEach(card => {
-            if (filterValue === 'all' || card.classList.contains(filterValue)) {
-                card.style.display = 'block';
-            } else {
-                card.style.display = 'none';
-            }
+            projectCards.forEach(card => {
+                if (filterValue === 'all' || card.classList.contains(filterValue)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
         });
     });
-});
+}
 
 // --- CASE STUDY MODAL ---
 const caseModal = document.getElementById('case-modal');
@@ -224,7 +225,6 @@ if (terminalToggle && terminalOverlay && closeTerminal && terminalInput && termi
     function toggleTerminal() {
         if (terminalOverlay.classList.contains('translate-y-[120%]')) {
             terminalOverlay.classList.remove('hidden');
-            // Small delay to allow display:block to apply before animating transform
             setTimeout(() => {
                 terminalOverlay.classList.remove('translate-y-[120%]');
                 terminalInput.focus();
@@ -244,16 +244,8 @@ if (terminalToggle && terminalOverlay && closeTerminal && terminalInput && termi
         'help': 'Available commands:\n- help: Show this message\n- clear: Clear terminal output\n- about: Display system info\n- deploy: Initiate deployment sequence\n- contact: Open communication link\n- sudo: Request elevated privileges',
         'clear': () => { terminalOutput.innerHTML = ''; return ''; },
         'about': 'Dorky Builds OS v1.0.0\nKernel: Hacker_Mindset_x64\nMission: Build production-grade systems.',
-        'deploy': 'Initiating deployment...\n[OK] Dependencies resolved.\n[OK] Code compiled.\n[OK] Tests passed.\n> System live. Awaiting inputs.',
-        'contact': () => {
-            const contactSection = document.getElementById('contact');
-            if(contactSection) {
-                contactSection.scrollIntoView({behavior: 'smooth'});
-                toggleTerminal();
-                return 'Navigating to contact module...';
-            }
-            return 'Error: Contact module not found.';
-        },
+        'deploy': () => { window.location.href = '/services'; return 'Redirecting to Engine Modules...'; },
+        'contact': () => { window.location.href = '/contact'; return 'Navigating to contact module...'; },
         'sudo': 'Access denied. Incident reported.'
     };
 
@@ -264,13 +256,11 @@ if (terminalToggle && terminalOverlay && closeTerminal && terminalInput && termi
 
             if (val === '') return;
 
-            // Echo command
             const echoLine = document.createElement('div');
             echoLine.className = 'mb-1';
             echoLine.innerHTML = `<span class="text-primary">></span> ${val}`;
             terminalOutput.appendChild(echoLine);
 
-            // Process command
             const responseLine = document.createElement('div');
             responseLine.className = 'text-on-surface-variant mb-3 whitespace-pre-wrap';
 
@@ -309,7 +299,7 @@ if (contactForm) {
 
         try {
             const formData = new FormData(contactForm);
-            const response = await fetch('/contact', {
+            const response = await fetch('/contact-submit', {
                 method: 'POST',
                 body: formData
             });
@@ -372,13 +362,13 @@ if (applyForm) {
     });
 }
 
-// --- MULTI-STEP ONBOARDING FLOW ---
-const onboardingModal = document.getElementById('onboarding-modal');
+// --- MULTI-STEP ONBOARDING LOGIC (requirements.html) ---
 const projectOptionsContainer = document.getElementById('project-options');
 const stepIndicator = document.getElementById('step-indicator');
 const currentStepNum = document.getElementById('current-step-num');
 const progressBar = document.getElementById('progress-bar');
 const requirementsForm = document.getElementById('requirements-form');
+const moduleSelectFallback = document.getElementById('module-select-fallback');
 
 let onboardingState = {
     module: '',
@@ -410,40 +400,50 @@ const moduleProjects = {
     ]
 };
 
-function openOnboarding(moduleKey) {
-    if (!onboardingModal) return;
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if we are on the requirements page
+    const step1 = document.getElementById('step-1');
+    if (!step1) return;
 
-    // Reset state
-    onboardingState = { module: moduleKey, projectType: '', plan: '' };
+    // Read URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlModule = urlParams.get('module');
+    const urlPlan = urlParams.get('plan');
 
-    // Populate Step 1 Options
-    if (projectOptionsContainer && moduleProjects[moduleKey]) {
-        projectOptionsContainer.innerHTML = moduleProjects[moduleKey].map(proj => `
-            <div class="brutalist-border bg-surface p-4 cursor-pointer hover:border-primary transition-colors group" onclick="selectProjectType('${proj.name}')">
-                <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">> ${proj.name}</h3>
-                <p class="text-sm text-on-surface-variant">${proj.desc}</p>
-            </div>
-        `).join('');
+    if (urlModule && moduleProjects[urlModule]) {
+        onboardingState.module = urlModule;
+        // Populate Step 1 Options
+        if (projectOptionsContainer) {
+            projectOptionsContainer.innerHTML = moduleProjects[urlModule].map(proj => `
+                <div class="brutalist-border bg-surface p-4 cursor-pointer hover:border-primary transition-colors group" onclick="selectProjectType('${proj.name}')">
+                    <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">> ${proj.name}</h3>
+                    <p class="text-sm text-on-surface-variant">${proj.desc}</p>
+                </div>
+            `).join('');
+            projectOptionsContainer.classList.remove('hidden');
+        }
+        if (moduleSelectFallback) moduleSelectFallback.classList.add('hidden');
+        goToStep(1);
+    } else if (urlPlan) {
+        // Came from pricing page directly, skip to step 3 and leave project type empty
+        onboardingState.plan = urlPlan;
+        const reqPlanInput = document.getElementById('req-plan');
+        if (reqPlanInput) reqPlanInput.value = urlPlan;
+
+        const reqProjectInput = document.getElementById('req-project');
+        if (reqProjectInput) {
+            reqProjectInput.value = "Unspecified (from Pricing)";
+            reqProjectInput.removeAttribute('readonly'); // allow user to edit
+        }
+
+        goToStep(3);
+    } else {
+        // No module or plan selected
+        if (projectOptionsContainer) projectOptionsContainer.classList.add('hidden');
+        if (moduleSelectFallback) moduleSelectFallback.classList.remove('hidden');
+        goToStep(1);
     }
-
-    goToStep(1);
-
-    // Show modal
-    onboardingModal.classList.remove('hidden');
-    // Trigger reflow
-    void onboardingModal.offsetWidth;
-    onboardingModal.classList.remove('opacity-0');
-    document.body.style.overflow = 'hidden';
-}
-
-function closeOnboarding() {
-    if (!onboardingModal) return;
-    onboardingModal.classList.add('opacity-0');
-    setTimeout(() => {
-        onboardingModal.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-    }, 300);
-}
+});
 
 function goToStep(stepNum) {
     // Update UI
@@ -487,6 +487,10 @@ function selectProjectType(projectName) {
 
 function selectPlan(planName) {
     onboardingState.plan = planName;
+    const reqPlanInput = document.getElementById('req-plan');
+    if (reqPlanInput) {
+        reqPlanInput.value = planName;
+    }
     goToStep(3);
 }
 
@@ -504,8 +508,13 @@ if (requirementsForm) {
         formData.append('name', document.getElementById('req-name').value);
         formData.append('email', document.getElementById('req-email').value);
         formData.append('phone', document.getElementById('req-phone').value);
-        formData.append('projectType', onboardingState.projectType);
-        formData.append('plan', onboardingState.plan);
+
+        const reqProjInput = document.getElementById('req-project');
+        formData.append('projectType', reqProjInput ? reqProjInput.value : onboardingState.projectType);
+
+        const reqPlanInput = document.getElementById('req-plan');
+        formData.append('plan', reqPlanInput ? reqPlanInput.value : onboardingState.plan);
+
         formData.append('budget', document.getElementById('req-budget').value);
         formData.append('timeline', document.getElementById('req-timeline').value);
         formData.append('features', document.getElementById('req-features').value);

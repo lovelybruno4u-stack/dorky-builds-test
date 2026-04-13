@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- PRICING -->
+<section id="pricing" class="py-12 md:py-24">
+    <div class="mb-12 text-center">
+        <h2 class="text-3xl font-bold text-primary mb-2">> RESOURCE_ALLOCATION.cfg</h2>
+        <p class="text-on-surface-variant">Select compute tier and initiate build sequence.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+        <!-- Starter -->
+        <a href="/requirements?plan=STARTER" class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors group">
+            <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">🟢 STARTER</h3>
+            <div class="text-3xl font-bold text-white mb-2">₹999</div>
+            <p class="text-xs text-on-surface-variant mb-6">2–3 days, basic build</p>
+            <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                <li class="flex gap-2"><span class="text-primary">✓</span> Single Page Application</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Basic UI/UX Design</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Mobile Responsive</li>
+            </ul>
+            <button class="w-full border border-surface-border py-2 group-hover:bg-white group-hover:text-black transition-colors font-bold text-sm uppercase">INITIATE</button>
+        </a>
+
+        <!-- Basic -->
+        <a href="/requirements?plan=BASIC" class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors group">
+            <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">🔵 BASIC</h3>
+            <div class="text-3xl font-bold text-white mb-2">₹2,999</div>
+            <p class="text-xs text-on-surface-variant mb-6">3–5 days, simple site</p>
+            <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                <li class="flex gap-2"><span class="text-primary">✓</span> Multi-page Application</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Simple Forms</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Standard Animations</li>
+            </ul>
+            <button class="w-full border border-surface-border py-2 group-hover:bg-white group-hover:text-black transition-colors font-bold text-sm uppercase">INITIATE</button>
+        </a>
+
+        <!-- Standard -->
+        <a href="/requirements?plan=STANDARD" class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors group">
+            <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">🟡 STANDARD</h3>
+            <div class="text-3xl font-bold text-white mb-2">₹4,999</div>
+            <p class="text-xs text-on-surface-variant mb-6">5–7 days, better UI</p>
+            <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                <li class="flex gap-2"><span class="text-primary">✓</span> Better UI/UX</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Basic Backend Integration</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> CMS Setup</li>
+            </ul>
+            <button class="w-full border border-surface-border py-2 group-hover:bg-white group-hover:text-black transition-colors font-bold text-sm uppercase">INITIATE</button>
+        </a>
+
+        <!-- Pro (Highlight) -->
+        <a href="/requirements?plan=PRO" class="brutalist-border bg-black p-1 relative transform md:-translate-y-4 shadow-[0_0_15px_rgba(0,255,65,0.2)] hover:shadow-[0_0_25px_rgba(0,255,65,0.4)] transition-all group lg:col-start-2">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-black text-xs font-bold px-3 py-1 uppercase tracking-wider">
+                Best Value ⭐
+            </div>
+            <div class="border-2 border-primary p-6 flex flex-col h-full bg-surface">
+                <h3 class="text-xl font-bold mb-2 text-primary group-hover:text-white transition-colors">🟠 PRO</h3>
+                <div class="text-4xl font-bold text-white mb-2">₹9,999</div>
+                <p class="text-xs text-primary mb-6">7-10 days, advanced build</p>
+                <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                    <li class="flex gap-2"><span class="text-primary">✓</span> Custom UI/UX & Animations</li>
+                    <li class="flex gap-2"><span class="text-primary">✓</span> Full Database Integration</li>
+                    <li class="flex gap-2"><span class="text-primary">✓</span> Auth & API Development</li>
+                    <li class="flex gap-2"><span class="text-primary">✓</span> 1 Month Support</li>
+                </ul>
+                <button class="w-full bg-primary text-black py-3 group-hover:bg-white transition-colors font-bold text-sm uppercase">DEPLOY_NOW</button>
+            </div>
+        </a>
+
+        <!-- Advanced -->
+        <a href="/requirements?plan=ADVANCED" class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors group">
+            <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">🔴 ADVANCED</h3>
+            <div class="text-3xl font-bold text-white mb-2">₹14,999</div>
+            <p class="text-xs text-on-surface-variant mb-6">10-14 days, robust system</p>
+            <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                <li class="flex gap-2"><span class="text-primary">✓</span> Complex Architectures</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Custom Integrations</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> Advanced Security</li>
+            </ul>
+            <button class="w-full border border-surface-border py-2 group-hover:bg-white group-hover:text-black transition-colors font-bold text-sm uppercase">INITIATE</button>
+        </a>
+
+        <!-- Elite -->
+        <a href="/requirements?plan=ELITE" class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors group lg:col-start-1">
+            <h3 class="text-xl font-bold mb-2 group-hover:text-primary transition-colors">🟣 ELITE</h3>
+            <div class="text-3xl font-bold text-white mb-2">₹29,999+</div>
+            <p class="text-xs text-on-surface-variant mb-6">Custom timeline, full-stack</p>
+            <ul class="text-sm text-on-surface-variant mb-8 flex-grow space-y-3">
+                <li class="flex gap-2"><span class="text-primary">✓</span> Scalable Infrastructure</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> AI Integrations</li>
+                <li class="flex gap-2"><span class="text-primary">✓</span> 3 Months Support</li>
+            </ul>
+            <button class="w-full border border-surface-border py-2 group-hover:bg-white group-hover:text-black transition-colors font-bold text-sm uppercase">INITIATE</button>
+        </a>
+
+        <!-- Enterprise -->
+        <a href="/requirements?plan=ENTERPRISE" class="brutalist-border bg-surface p-6 flex flex-col h-full hover:border-white transition-colors group lg:col-span-2">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
+                <h3 class="text-xl font-bold group-hover:text-primary transition-colors">⚫ ENTERPRISE</h3>
+                <div class="text-3xl font-bold text-white mt-2 md:mt-0">₹50,000+</div>
+            </div>
+            <p class="text-xs text-on-surface-variant mb-6">Dedicated team, massive scale</p>
+            <p class="text-sm text-on-surface-variant mb-8 flex-grow">Complete custom agency solutions. Full dedicated resources. SLA guarantees. Perfect for large-scale migrations and core infrastructure builds.</p>
+            <button class="w-full border border-surface-border py-2 group-hover:bg-white group-hover:text-black transition-colors font-bold text-sm uppercase md:w-auto md:px-12">CONTACT_COMMAND</button>
+        </a>
+    </div>
+</section>
+{% endblock %}

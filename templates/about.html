@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- PIPELINE -->
+<section id="pipeline" class="py-12 md:py-24 border-b-2 border-surface-border">
+    <div class="mb-12">
+        <h2 class="text-3xl font-bold text-primary mb-2">> EXECUTION_PIPELINE.sh</h2>
+        <p class="text-on-surface-variant">Standard operating procedure for project compilation.</p>
+    </div>
+
+    <div class="relative">
+        <div class="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-surface-border -translate-x-1/2"></div>
+
+        <div class="space-y-12">
+            <!-- Step 1 -->
+            <div class="relative flex flex-col md:flex-row items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-right mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">SCAN_ENV</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Deep analysis of requirements, architecture planning, and feasibility assessment. No code until the blueprint is flawless.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">01</div>
+                <div class="md:w-5/12"></div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="relative flex flex-col md:flex-row-reverse items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-left mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">BUILD_PROTO</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Rapid construction of core systems. Minimum Viable Product deployed for immediate feedback loop.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">02</div>
+                <div class="md:w-5/12"></div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="relative flex flex-col md:flex-row items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-right mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">TEST_SYSTEM</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Rigorous stress testing, security audits, and performance optimization. Breaking things in dev so they survive in prod.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-black border-2 border-surface-border group-hover:border-primary flex items-center justify-center text-primary font-bold shadow-[0_0_0_4px_rgba(0,0,0,1)] transition-colors">03</div>
+                <div class="md:w-5/12"></div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="relative flex flex-col md:flex-row-reverse items-center md:justify-between group">
+                <div class="md:w-5/12 text-center md:text-left mb-4 md:mb-0">
+                    <h3 class="text-2xl font-bold text-white group-hover:text-primary transition-colors">PUSH_PROD</h3>
+                    <p class="text-on-surface-variant text-sm mt-2">Final deployment to live servers. Continuous monitoring established. System operational.</p>
+                </div>
+                <div class="z-10 w-12 h-12 rounded-full bg-primary border-2 border-primary flex items-center justify-center text-black font-bold shadow-[0_0_15px_rgba(0,255,65,0.4)]">04</div>
+                <div class="md:w-5/12"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ORIGIN / ABOUT -->
+<section id="origin" class="py-24 border-b-2 border-surface-border">
+    <div class="flex flex-col md:flex-row gap-12">
+        <div class="md:w-1/2">
+            <h2 class="text-3xl font-bold text-primary mb-6">> ORIGIN_STORY.txt</h2>
+            <div class="prose prose-invert border-l-2 border-surface-border pl-6 space-y-4 text-on-surface-variant">
+                <p>
+                    <span class="text-primary font-bold">Founder: Aayush Patil</span>
+                </p>
+                <p>
+                    Built by a student, for the world. <span class="text-white">[School Name Placeholder]</span> alumni.
+                </p>
+                <p>
+                    Dorky Builds wasn't founded in a boardroom. It was compiled in late-night hackathons, fueled by caffeine and a relentless obsession with clean architecture. What started as side-projects evolved into a tactical unit for production code.
+                </p>
+                <p>
+                    <strong>Mission Directive:</strong> Strip away the cruft. Build tools that work. Deploy systems that scale. No fluff, just execution.
+                </p>
+            </div>
+        </div>
+        <div class="md:w-1/2 brutalist-border bg-black p-6 relative overflow-hidden">
+            <div class="absolute right-0 top-0 opacity-10 pointer-events-none text-9xl font-bold text-primary -translate-y-8 translate-x-8">DB</div>
+            <div class="relative z-10">
+                <h3 class="text-xl font-bold mb-4 text-white">TIMELINE</h3>
+                <ul class="space-y-4">
+                    <li class="flex gap-4">
+                        <span class="text-primary font-bold">2022</span>
+                        <span class="text-on-surface-variant">System initialized. First scripts written.</span>
+                    </li>
+                    <li class="flex gap-4">
+                        <span class="text-primary font-bold">2023</span>
+                        <span class="text-on-surface-variant">Agency core compiled. Delivered 20+ web solutions.</span>
+                    </li>
+                    <li class="flex gap-4">
+                        <span class="text-primary font-bold">2024</span>
+                        <span class="text-on-surface-variant">AI integration layer added. Scaled operations globally.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- STATS -->
+<section id="stats" class="py-16 border-b-2 border-surface-border bg-surface/50">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="150">0</span>+</div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Deployments</div>
+        </div>
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="99">0</span>%</div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Uptime</div>
+        </div>
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="42">0</span></div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">AI Agents Built</div>
+        </div>
+        <div>
+            <div class="text-4xl md:text-5xl font-bold text-primary mb-2"><span class="counter" data-target="10">0</span>K</div>
+            <div class="text-sm text-on-surface-variant uppercase tracking-wider">Commits</div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dorky Builds | DECONSTRUCTED_CODEBASE</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+tailwind.config = {
+darkMode: "class",
+theme: {
+extend: {
+colors: {
+"primary": "#00FF41",
+"background": "#000000",
+"surface": "#121212",
+"surface-border": "#333333",
+"on-surface": "#FFFFFF",
+"on-surface-variant": "#A0A0A0",
+},
+fontFamily: {
+"mono": ["JetBrains Mono", "monospace"],
+},
+borderRadius: {
+"none": "0",
+"DEFAULT": "0",
+},
+},
+},
+}
+</script>
+<style type="text/tailwindcss">
+body {
+@apply font-mono bg-background text-on-surface;
+background-image: radial-gradient(#1a1a1a 1px, transparent 1px);
+background-size: 20px 20px;
+}
+.brutalist-border { border: 2px solid #333333; }
+.accent-border { border: 2px solid #00FF41; }
+.terminal-header {
+background: #1a1a1a;
+border-bottom: 2px solid #333333;
+padding: 4px 12px;
+font-size: 0.75rem;
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.terminal-dot {
+width: 8px;
+height: 8px;
+border-radius: 50%;
+background: #333;
+}
+.ascii-art {
+white-space: pre;
+font-size: 10px;
+color: #00FF41;
+}
+.scanline {
+width: 100%;
+height: 2px;
+background: rgba(0, 255, 65, 0.1);
+position: absolute;
+z-index: 100;
+pointer-events: none;
+}
+</style>
+</head>
+<body class="selection:bg-primary selection:text-black min-h-screen flex flex-col">
+
+<div class="scanline" id="scanline"></div>
+<div id="cursor-glow" class="fixed w-32 h-32 rounded-full pointer-events-none z-50 mix-blend-screen opacity-20" style="background: radial-gradient(circle, #00FF41 0%, transparent 70%); transform: translate(-50%, -50%); display: none;"></div>
+
+<!-- Navigation -->
+<nav class="fixed top-0 w-full z-40 bg-background/90 backdrop-blur-sm border-b-2 border-surface-border p-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <a href="/" class="text-primary font-bold tracking-widest text-xl cursor-pointer hover:text-white transition-colors">
+            > DORKY_BUILDS_
+        </a>
+
+        <!-- Desktop Nav -->
+        <div class="hidden md:flex gap-6 text-sm">
+            <a href="/" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[01] HOME</a>
+            <a href="/services" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[02] ENGINE</a>
+            <a href="/workbench" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[03] WORKBENCH</a>
+            <a href="/pricing" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[04] PRICING</a>
+            <a href="/about" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[05] ORIGIN</a>
+            <a href="/contact" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[06] CONTACT</a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button class="md:hidden text-primary hover:text-white" id="mobile-menu-btn">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+    </div>
+</nav>
+
+<!-- Mobile Nav Overlay -->
+<div id="mobile-nav" class="fixed inset-0 z-50 bg-background flex flex-col pt-20 px-6 transform translate-x-full transition-transform duration-300">
+    <div class="flex justify-end mb-8">
+        <button id="close-menu-btn" class="text-primary hover:text-white">
+            <span class="material-symbols-outlined text-3xl">close</span>
+        </button>
+    </div>
+    <div class="flex flex-col gap-6 text-xl">
+        <a href="/" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[01] HOME</a>
+        <a href="/services" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[02] ENGINE</a>
+        <a href="/workbench" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[03] WORKBENCH</a>
+        <a href="/pricing" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[04] PRICING</a>
+        <a href="/about" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[05] ORIGIN</a>
+        <a href="/contact" class="mobile-link hover:text-primary transition-colors pb-2">[06] CONTACT</a>
+    </div>
+</div>
+
+<main class="pt-24 max-w-7xl mx-auto px-4 pb-24 flex-grow w-full">
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="border-t-2 border-surface-border bg-black py-8 text-center text-sm text-on-surface-variant mt-auto">
+    <p>> &copy; 2024 DORKY BUILDS. ALL RIGHTS RESERVED.</p>
+    <p class="mt-2 text-xs">SYSTEM_STATUS: <span class="text-primary font-bold animate-pulse">ONLINE</span></p>
+</footer>
+
+<!-- TERMINAL OVERLAY -->
+<div id="terminal-overlay" class="fixed bottom-4 right-4 w-80 h-96 bg-black brutalist-border z-50 transform translate-y-[120%] transition-transform duration-300 flex flex-col shadow-[0_0_20px_rgba(0,255,65,0.2)] hidden sm:flex">
+    <div class="terminal-header cursor-move flex justify-between items-center" id="terminal-header">
+        <div class="flex items-center gap-2">
+            <div class="terminal-dot" style="background:#27c93f"></div>
+            <span>root@dorky-builds:~</span>
+        </div>
+        <button id="close-terminal" class="text-on-surface-variant hover:text-primary"><span class="material-symbols-outlined text-sm">close</span></button>
+    </div>
+    <div class="p-4 flex-grow overflow-y-auto text-xs" id="terminal-output">
+        <div class="text-primary mb-2">Dorky Builds OS v1.0.0</div>
+        <div class="text-on-surface-variant mb-4">Type 'help' to see available commands.</div>
+    </div>
+    <div class="p-2 border-t border-surface-border flex items-center gap-2 bg-surface">
+        <span class="text-primary">></span>
+        <input type="text" id="terminal-input" class="bg-transparent border-none outline-none w-full text-white text-xs font-mono" autocomplete="off" spellcheck="false">
+    </div>
+</div>
+
+<!-- FLOATING TERMINAL TOGGLE -->
+<button id="terminal-toggle" class="fixed bottom-4 right-4 z-40 bg-black brutalist-border p-3 text-primary hover:bg-primary hover:text-black transition-colors shadow-[0_0_10px_rgba(0,255,65,0.3)] hidden sm:block">
+    <span class="material-symbols-outlined">terminal</span>
+</button>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

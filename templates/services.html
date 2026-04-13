@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- ENGINE MODULES -->
+<section id="engine" class="py-12 md:py-24">
+    <div class="mb-12">
+        <h2 class="text-3xl font-bold text-primary mb-2">> ENGINE_MODULES.sys</h2>
+        <p class="text-on-surface-variant">Core capabilities loaded into memory. Select a module to initiate project build.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Module 1 -->
+        <a href="/requirements?module=web_dev" class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 block">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_01.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">code</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">Web Dev</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">High-performance, scalable web applications built with modern frameworks. Brutally fast and relentlessly optimized.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > INITIATE_BUILD
+                </div>
+            </div>
+        </a>
+
+        <!-- Module 2 -->
+        <a href="/requirements?module=ai_tools" class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 block">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_02.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">smart_toy</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">AI Tools</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">Custom LLM integrations, automated workflows, and intelligent agents. Augmenting human capability with machine precision.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > INITIATE_BUILD
+                </div>
+            </div>
+        </a>
+
+        <!-- Module 3 -->
+        <a href="/requirements?module=automation" class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 block">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_03.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">precision_manufacturing</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">Automation</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">Scripts, bots, and CI/CD pipelines. Eradicating manual labor through ruthless systemic efficiency.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > INITIATE_BUILD
+                </div>
+            </div>
+        </a>
+
+        <!-- Module 4 -->
+        <a href="/requirements?module=student" class="group brutalist-border bg-surface p-1 hover:border-primary transition-colors duration-300 block">
+            <div class="terminal-header">
+                <span class="text-on-surface-variant group-hover:text-primary transition-colors">module_04.exe</span>
+            </div>
+            <div class="p-6 bg-black h-full flex flex-col justify-between">
+                <div>
+                    <span class="material-symbols-outlined text-4xl text-primary mb-4 block transform group-hover:scale-110 transition-transform">school</span>
+                    <h3 class="text-xl font-bold mb-2 uppercase group-hover:text-primary transition-colors">Student Projects</h3>
+                    <p class="text-sm text-on-surface-variant mb-6">Mentorship and foundational builds for the next generation of engineers. Launching careers with production-grade code.</p>
+                </div>
+                <div class="text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    > INITIATE_BUILD
+                </div>
+            </div>
+        </a>
+    </div>
+</section>
+{% endblock %}
