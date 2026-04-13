@@ -617,3 +617,80 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// --- AUTHENTICATION (MOCK FIREBASE FOR LOCAL TESTING) ---
+let currentUser = null;
+
+// Mock login function simulating Firebase Google Auth
+function signInWithGoogle() {
+    console.log("Mock Google Sign-In initiated...");
+    // Simulate successful login
+    setTimeout(() => {
+        currentUser = {
+            uid: "mock-uid-12345",
+            displayName: "Test User",
+            email: "test@example.com"
+        };
+        localStorage.setItem("dorkyUser", JSON.stringify(currentUser));
+        updateAuthUI();
+
+        // Auto-fill requirements form email if present
+        const reqEmail = document.getElementById("req-email");
+        if (reqEmail && reqEmail.value === "contact@aayushpatilofficial.online") {
+            reqEmail.value = currentUser.email;
+        }
+
+        // Redirect to dashboard if logged in via navbar
+        if (window.location.pathname !== '/requirements') {
+            window.location.href = "/dashboard";
+        }
+    }, 1000);
+}
+
+function signOut() {
+    console.log("Signing out...");
+    currentUser = null;
+    localStorage.removeItem("dorkyUser");
+    updateAuthUI();
+    if (window.location.pathname === '/dashboard') {
+        window.location.href = "/";
+    }
+}
+
+function updateAuthUI() {
+    const authBtn = document.getElementById("auth-btn");
+    const mobileAuthBtn = document.getElementById("mobile-auth-btn");
+
+    if (currentUser) {
+        if (authBtn) {
+            authBtn.innerText = "[08] DASHBOARD";
+            authBtn.href = "/dashboard";
+            authBtn.onclick = null;
+        }
+        if (mobileAuthBtn) {
+            mobileAuthBtn.innerText = "[08] DASHBOARD";
+            mobileAuthBtn.href = "/dashboard";
+            mobileAuthBtn.onclick = null;
+        }
+    } else {
+        if (authBtn) {
+            authBtn.innerText = "[08] LOGIN";
+            authBtn.href = "#";
+            authBtn.onclick = (e) => { e.preventDefault(); signInWithGoogle(); };
+        }
+        if (mobileAuthBtn) {
+            mobileAuthBtn.innerText = "[08] LOGIN";
+            mobileAuthBtn.href = "#";
+            mobileAuthBtn.onclick = (e) => { e.preventDefault(); signInWithGoogle(); };
+        }
+    }
+}
+
+// Initialize Auth State on Load
+document.addEventListener("DOMContentLoaded", () => {
+    const storedUser = localStorage.getItem("dorkyUser");
+    if (storedUser) {
+        currentUser = JSON.parse(storedUser);
+    }
+    updateAuthUI();
+});

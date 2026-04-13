@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- USER DASHBOARD SECTION -->
+<section id="dashboard" class="py-12 md:py-24 min-h-[70vh] flex flex-col">
+    <div class="mb-12 flex justify-between items-center w-full">
+        <div>
+            <h2 class="text-3xl font-bold text-white mb-2">> DASHBOARD.exe</h2>
+            <p class="text-on-surface-variant text-lg">Manage your project allocations.</p>
+        </div>
+        <button onclick="signOut()" class="text-primary hover:text-white transition-colors border-2 border-primary hover:border-white px-4 py-2 font-bold uppercase tracking-widest text-xs hidden md:block">
+            [ SIGN_OUT ]
+        </button>
+    </div>
+
+    <!-- Not Logged In State -->
+    <div id="unauth-state" class="w-full flex-grow flex flex-col items-center justify-center p-6 text-center">
+        <span class="material-symbols-outlined text-6xl text-on-surface-variant mb-4">lock</span>
+        <h3 class="text-2xl font-bold text-white mb-2">ACCESS DENIED</h3>
+        <p class="text-on-surface-variant mb-8 max-w-md">You must initiate a secure connection to view active project parameters.</p>
+        <button onclick="signInWithGoogle()" class="bg-primary text-black font-bold py-4 px-8 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group">
+            <span class="relative z-10">> INITIATE_LOGIN</span>
+        </button>
+    </div>
+
+    <!-- Logged In State -->
+    <div id="auth-state" class="w-full hidden flex-col">
+        <div class="brutalist-border border-l-4 border-l-primary bg-black p-6 mb-12 flex justify-between items-center flex-wrap gap-4">
+            <div>
+                <span class="text-on-surface-variant uppercase text-xs">AUTHORIZED_USER:</span>
+                <span id="dash-user-email" class="text-primary font-mono ml-2">user@example.com</span>
+            </div>
+            <button onclick="signOut()" class="text-primary hover:text-white transition-colors uppercase tracking-widest text-xs md:hidden">
+                [ SIGN_OUT ]
+            </button>
+        </div>
+
+        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> ACTIVE_PROJECTS</h3>
+
+        <div id="orders-loading" class="text-primary font-mono animate-pulse p-4 text-center border-2 border-dashed border-surface-border">
+            > FETCHING_RECORDS...
+        </div>
+
+        <!-- Orders Grid -->
+        <div id="orders-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+            <!-- Dynamically populated -->
+        </div>
+
+        <div id="no-orders-msg" class="hidden brutalist-border bg-black p-8 text-center text-on-surface-variant my-8">
+            <p class="mb-4">No active projects found under this identifier.</p>
+            <a href="/services" class="inline-block text-primary hover:text-white uppercase text-sm border-b border-primary hover:border-white transition-colors">
+                > INITIALIZE_NEW_PROJECT
+            </a>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    function loadDashboardData() {
+        const storedUser = localStorage.getItem("dorkyUser");
+        if (storedUser) {
+            const user = JSON.parse(storedUser);
+
+            document.getElementById('unauth-state').classList.add('hidden');
+            document.getElementById('auth-state').classList.remove('hidden');
+            document.getElementById('auth-state').classList.add('flex');
+            document.getElementById('dash-user-email').innerText = user.email;
+
+            fetchUserOrders(user.email);
+        } else {
+            document.getElementById('auth-state').classList.add('hidden');
+            document.getElementById('auth-state').classList.remove('flex');
+            document.getElementById('unauth-state').classList.remove('hidden');
+            document.getElementById('unauth-state').classList.add('flex');
+        }
+    }
+
+    async function fetchUserOrders(email) {
+        document.getElementById('orders-grid').classList.add('hidden');
+        document.getElementById('no-orders-msg').classList.add('hidden');
+        document.getElementById('orders-loading').classList.remove('hidden');
+
+        try {
+            const res = await fetch(`/api/orders?email=${encodeURIComponent(email)}`);
+            const data = await res.json();
+
+            document.getElementById('orders-loading').classList.add('hidden');
+
+            if (data.status === 'success' && data.orders && data.orders.length > 0) {
+                const grid = document.getElementById('orders-grid');
+                grid.innerHTML = '';
+
+                data.orders.forEach(order => {
+                    const status = order.status || order.Status || 'UNKNOWN';
+                    const bookingId = order.booking_id || order['Booking ID'] || 'DB-UNKNOWN';
+                    const projectName = order.project_type || order['Project Type'] || 'Custom Build';
+                    const previewLink = order.preview_link || order['Preview Link'];
+
+                    let previewBtnHtml = '';
+                    if (previewLink && previewLink.trim() !== '') {
+                        previewBtnHtml = `
+                            <div class="mt-6 pt-4 border-t border-surface-border">
+                                <a href="${previewLink}" target="_blank" class="block w-full bg-primary text-black font-bold py-2 text-center hover:bg-white transition-colors uppercase tracking-widest text-xs">
+                                    [ VIEW_PREVIEW ]
+                                </a>
+                            </div>
+                        `;
+                    }
+
+                    const cardHtml = `
+                        <div class="brutalist-border bg-surface p-6 hover:border-primary transition-colors flex flex-col h-full relative group">
+                            <div class="absolute top-0 right-0 p-2 text-xs font-mono font-bold text-primary opacity-50 group-hover:opacity-100 transition-opacity">
+                                ${status}
+                            </div>
+
+                            <h4 class="text-xl font-bold text-white mb-1 group-hover:text-primary transition-colors">${projectName}</h4>
+                            <p class="font-mono text-sm text-on-surface-variant mb-6 border-b border-surface-border pb-4">ID: ${bookingId}</p>
+
+                            <ul class="text-xs text-on-surface-variant space-y-2 mb-6 flex-grow font-mono">
+                                <li>> PLAN: <span class="text-white">${order.plan || order.Plan || '-'}</span></li>
+                                <li>> PAYMENT: <span class="text-yellow-400">${order.payment_status || order['Payment Status'] || 'PENDING'}</span></li>
+                                <li>> SPEED: <span class="text-white">${order.delivery_speed || order['Delivery Speed'] || 'Normal'}</span></li>
+                            </ul>
+
+                            <a href="/track?id=${bookingId}" class="inline-block text-primary hover:text-white uppercase text-xs">
+                                > FULL_TRACE_LOG
+                            </a>
+
+                            ${previewBtnHtml}
+                        </div>
+                    `;
+                    grid.innerHTML += cardHtml;
+                });
+
+                grid.classList.remove('hidden');
+            } else {
+                document.getElementById('no-orders-msg').classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error('Error fetching orders:', err);
+            document.getElementById('orders-loading').classList.add('hidden');
+            document.getElementById('no-orders-msg').innerHTML = '<p class="text-red-500">> ERR: FAILED_TO_FETCH_RECORDS</p>';
+            document.getElementById('no-orders-msg').classList.remove('hidden');
+        }
+    }
+
+    // Call initially
+    loadDashboardData();
+
+    // Listen for auth state changes (hacky way since we don't have real reactive state)
+    const originalSignIn = window.signInWithGoogle;
+    const originalSignOut = window.signOut;
+
+    window.signInWithGoogle = function() {
+        if(originalSignIn) originalSignIn();
+        setTimeout(loadDashboardData, 1100); // Wait for mock delay
+    };
+
+    window.signOut = function() {
+        if(originalSignOut) originalSignOut();
+        setTimeout(loadDashboardData, 100);
+    };
+});
+</script>
+{% endblock %}

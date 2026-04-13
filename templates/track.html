@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- TRACK ORDER SECTION -->
+<section id="track-order" class="py-24 border-b-2 border-surface-border min-h-[70vh] flex flex-col items-center">
+    <div class="mb-12 text-center w-full">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">> TRACK_ORDER.sys</h2>
+        <p class="text-on-surface-variant text-lg">Input your booking ID to trace project status.</p>
+    </div>
+
+    <div class="w-full max-w-lg brutalist-border bg-surface p-6 md:p-8">
+        <form id="track-form" class="flex flex-col gap-4">
+            <label class="block text-xs text-primary mb-1">> BOOKING_ID</label>
+            <input type="text" id="track-booking-id" placeholder="DB-XXXXXX" required class="w-full bg-black border border-surface-border p-4 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-center text-xl uppercase tracking-widest transition-colors">
+
+            <button type="submit" class="w-full bg-primary text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group mt-4">
+                <span class="relative z-10">> INITIALIZE_TRACE</span>
+            </button>
+        </form>
+
+        <!-- Loading State -->
+        <div id="track-loading" class="hidden text-center mt-8 text-primary font-mono animate-pulse">
+            > LOCATING_RECORD...
+        </div>
+
+        <!-- Results Display -->
+        <div id="track-results" class="hidden mt-8 border-t-2 border-surface-border pt-8">
+            <h3 class="text-xl font-bold text-white mb-6">PROJECT_STATUS: <span id="res-status" class="text-primary ml-2"></span></h3>
+
+            <div class="space-y-4 font-mono text-sm">
+                <div class="flex justify-between border-b border-surface-border pb-2">
+                    <span class="text-on-surface-variant">NAME</span>
+                    <span id="res-name" class="text-white text-right"></span>
+                </div>
+                <div class="flex justify-between border-b border-surface-border pb-2">
+                    <span class="text-on-surface-variant">PROJECT</span>
+                    <span id="res-project" class="text-white text-right"></span>
+                </div>
+                <div class="flex justify-between border-b border-surface-border pb-2">
+                    <span class="text-on-surface-variant">PLAN</span>
+                    <span id="res-plan" class="text-white text-right"></span>
+                </div>
+                <div class="flex justify-between border-b border-surface-border pb-2">
+                    <span class="text-on-surface-variant">PAYMENT</span>
+                    <span id="res-payment" class="text-yellow-400 text-right"></span>
+                </div>
+            </div>
+
+            <!-- Preview Link Section -->
+            <div id="preview-section" class="hidden mt-8 p-6 border-2 border-primary bg-black text-center">
+                <h4 class="text-primary font-bold mb-2 uppercase text-sm">> PREVIEW_AVAILABLE</h4>
+                <p class="text-xs text-on-surface-variant mb-6">Your project preview is ready for inspection.</p>
+                <a id="res-preview-link" href="#" target="_blank" class="inline-block bg-primary text-black font-bold py-3 px-8 hover:bg-white transition-colors uppercase tracking-widest text-sm">
+                    [ VIEW PREVIEW ]
+                </a>
+            </div>
+
+            <!-- Payment Needed Section -->
+            <div id="payment-section" class="mt-8 p-6 brutalist-border bg-black text-center">
+                <h4 class="text-yellow-400 font-bold mb-2 uppercase text-sm">PAYMENT REQUIRED AFTER APPROVAL</h4>
+                <p class="text-xs text-on-surface-variant">Final delivery and source code transfer will commence upon payment confirmation.</p>
+            </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="track-error" class="hidden mt-8 p-4 border border-red-500 bg-red-500/10 text-red-500 font-mono text-sm text-center">
+            > ERR: BOOKING_ID_NOT_FOUND
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const trackForm = document.getElementById('track-form');
+    if (trackForm) {
+        trackForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const bookingId = document.getElementById('track-booking-id').value.trim().toUpperCase();
+            if (!bookingId) return;
+
+            document.getElementById('track-results').classList.add('hidden');
+            document.getElementById('track-error').classList.add('hidden');
+            document.getElementById('track-loading').classList.remove('hidden');
+
+            try {
+                const response = await fetch(`/api/track/${bookingId}`);
+                const data = await response.json();
+
+                document.getElementById('track-loading').classList.add('hidden');
+
+                if (data.status === 'success' && data.order) {
+                    const order = data.order;
+
+                    document.getElementById('res-status').innerText = order.status || order.Status || 'UNKNOWN';
+                    document.getElementById('res-name').innerText = order.name || order.Name || '-';
+                    document.getElementById('res-project').innerText = order.project_type || order['Project Type'] || '-';
+                    document.getElementById('res-plan').innerText = order.plan || order.Plan || '-';
+                    document.getElementById('res-payment').innerText = order.payment_status || order['Payment Status'] || 'PENDING';
+
+                    const previewLink = order.preview_link || order['Preview Link'];
+                    if (previewLink && previewLink.trim() !== '') {
+                        document.getElementById('preview-section').classList.remove('hidden');
+                        document.getElementById('res-preview-link').href = previewLink;
+                    } else {
+                        document.getElementById('preview-section').classList.add('hidden');
+                    }
+
+                    document.getElementById('track-results').classList.remove('hidden');
+                } else {
+                    document.getElementById('track-error').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Tracking error:', err);
+                document.getElementById('track-loading').classList.add('hidden');
+                document.getElementById('track-error').classList.remove('hidden');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
