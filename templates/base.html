@@ -6,6 +6,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700;800&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+
 <script id="tailwind-config">
 tailwind.config = {
 darkMode: "class",
@@ -76,11 +77,112 @@ pointer-events: none;
     transform: translateY(0);
 }
 </style>
+
+<!-- FIREBASE V12 CONFIGURATION (MODULE) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-analytics.js";
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    onAuthStateChanged,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCQhuPJ8hPTCXpCl19iZJO6ny2KciEKmG4",
+    authDomain: "dorkybuilds-7af8d.firebaseapp.com",
+    projectId: "dorkybuilds-7af8d",
+    storageBucket: "dorkybuilds-7af8d.firebasestorage.app",
+    messagingSenderId: "645564946181",
+    appId: "1:645564946181:web:44a1afd8976b2249c5c96c",
+    measurementId: "G-RC1Z9K9L9C"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  // Optional, might fail if analytics is blocked
+  try {
+      const analytics = getAnalytics(app);
+  } catch(e) {}
+
+  const auth = getAuth(app);
+  const provider = new GoogleAuthProvider();
+
+  // Expose global object
+  window.currentUser = null;
+
+  // Listen for auth state changes
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+        window.currentUser = {
+            name: user.displayName,
+            email: user.email,
+            uid: user.uid,
+            photo: user.photoURL
+        };
+        // Persist to localStorage to avoid flicker
+        localStorage.setItem("dorkyUser", JSON.stringify(window.currentUser));
+        window.updateAuthUI(window.currentUser);
+    } else {
+        window.currentUser = null;
+        localStorage.removeItem("dorkyUser");
+        window.updateAuthUI(null);
+
+        // Protect Routes
+        const path = window.location.pathname;
+        if (path.startsWith('/dashboard') || path.startsWith('/requirements')) {
+            window.location.href = "/login";
+        }
+    }
+  });
+
+  // Login Function
+  window.loginWithGoogle = function() {
+    signInWithPopup(auth, provider)
+      .then((result) => {
+        const user = result.user;
+        window.currentUser = {
+            name: user.displayName,
+            email: user.email,
+            uid: user.uid,
+            photo: user.photoURL
+        };
+        localStorage.setItem("dorkyUser", JSON.stringify(window.currentUser));
+
+        if (window.location.pathname === '/login' || window.location.pathname === '/') {
+            window.location.href = "/dashboard";
+        }
+      })
+      .catch((error) => {
+        console.error("Login failed:", error);
+        if(window.showToast) {
+            window.showToast("Authentication failed.", "error");
+        }
+      });
+  };
+
+  // Logout Function
+  window.logoutUser = function() {
+    signOut(auth).then(() => {
+        localStorage.removeItem("dorkyUser");
+        window.location.href = "/login";
+    }).catch((error) => {
+        console.error("Logout failed:", error);
+    });
+  };
+</script>
+
 </head>
 <body class="selection:bg-primary selection:text-black min-h-screen flex flex-col">
 
 <div class="scanline" id="scanline"></div>
 <div id="cursor-glow" class="fixed w-32 h-32 rounded-full pointer-events-none z-50 mix-blend-screen opacity-20" style="background: radial-gradient(circle, #00FF41 0%, transparent 70%); transform: translate(-50%, -50%); display: none;"></div>
+
+<!-- Global Toast Notification -->
+<div id="global-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-primary text-black font-bold px-6 py-3 border-2 border-primary transform -translate-y-[200%] transition-transform duration-300 opacity-0 font-mono text-sm shadow-[0_0_20px_rgba(0,255,65,0.4)]">
+    <span id="toast-message">> Action completed.</span>
+</div>
 
 <!-- Navigation -->
 <nav class="fixed top-0 w-full z-40 bg-background/90 backdrop-blur-sm border-b-2 border-surface-border p-4">
@@ -98,7 +200,7 @@ pointer-events: none;
             <a href="/about" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[05] ORIGIN</a>
             <a href="/contact" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[06] CONTACT</a>
             <a href="/track" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[07] TRACK ORDER</a>
-            <a href="#" id="auth-btn" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[08] LOGIN</a>
+            <a href="#" id="auth-btn" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4" onclick="handleAuthClick(event)">[08] LOGIN</a>
         </div>
 
         <!-- Mobile Menu Button -->
@@ -123,7 +225,7 @@ pointer-events: none;
         <a href="/about" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[05] ORIGIN</a>
         <a href="/contact" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[06] CONTACT</a>
         <a href="/track" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[07] TRACK ORDER</a>
-        <a href="#" id="mobile-auth-btn" class="mobile-link hover:text-primary transition-colors pb-2">[08] LOGIN</a>
+        <a href="#" id="mobile-auth-btn" class="mobile-link hover:text-primary transition-colors pb-2" onclick="handleAuthClick(event)">[08] LOGIN</a>
     </div>
 </div>
 
@@ -161,5 +263,39 @@ pointer-events: none;
 </button>
 
 <script src="/static/script.js"></script>
+<script>
+    // Define global handler for auth button clicks
+    window.handleAuthClick = function(e) {
+        e.preventDefault();
+        const storedUser = localStorage.getItem("dorkyUser");
+        if (storedUser) {
+            window.location.href = "/dashboard";
+        } else {
+            window.location.href = "/login";
+        }
+    };
+
+    // Auth UI Sync
+    window.updateAuthUI = function(user) {
+        const authBtn = document.getElementById("auth-btn");
+        const mobileAuthBtn = document.getElementById("mobile-auth-btn");
+
+        if (user) {
+            if (authBtn) authBtn.innerText = "[08] DASHBOARD";
+            if (mobileAuthBtn) mobileAuthBtn.innerText = "[08] DASHBOARD";
+        } else {
+            if (authBtn) authBtn.innerText = "[08] LOGIN";
+            if (mobileAuthBtn) mobileAuthBtn.innerText = "[08] LOGIN";
+        }
+    };
+
+    // Initial UI check to prevent flicker before Firebase loads
+    document.addEventListener("DOMContentLoaded", () => {
+        const storedUser = localStorage.getItem("dorkyUser");
+        if (storedUser) {
+            window.updateAuthUI(JSON.parse(storedUser));
+        }
+    });
+</script>
 </body>
 </html>

@@ -13,21 +13,39 @@
             <label class="block text-xs text-primary mb-1">> BOOKING_ID</label>
             <input type="text" id="track-booking-id" placeholder="DB-XXXXXX" required class="w-full bg-black border border-surface-border p-4 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-center text-xl uppercase tracking-widest transition-colors">
 
-            <button type="submit" class="w-full bg-primary text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group mt-4">
+            <button type="submit" id="initiate-trace-btn" class="w-full bg-primary text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group mt-4">
                 <span class="relative z-10">> INITIALIZE_TRACE</span>
             </button>
         </form>
 
         <!-- Loading State -->
-        <div id="track-loading" class="hidden text-center mt-8 text-primary font-mono animate-pulse">
-            > LOCATING_RECORD...
+        <div id="track-loading" class="hidden text-center mt-8">
+            <span class="material-symbols-outlined text-primary text-4xl animate-spin mb-2">sync</span>
+            <div class="text-primary font-mono animate-pulse text-sm">> LOCATING_RECORD...</div>
         </div>
 
         <!-- Results Display -->
         <div id="track-results" class="hidden mt-8 border-t-2 border-surface-border pt-8">
-            <h3 class="text-xl font-bold text-white mb-6">PROJECT_STATUS: <span id="res-status" class="text-primary ml-2"></span></h3>
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-white">PROJECT_STATUS:</h3>
+                <span id="res-status" class="font-bold font-mono px-3 py-1 text-sm bg-black border"></span>
+            </div>
 
-            <div class="space-y-4 font-mono text-sm">
+            <!-- Progress Bar -->
+            <div class="mb-8">
+                <div class="flex justify-between text-[10px] text-on-surface-variant mb-2 font-mono uppercase tracking-tighter">
+                    <span>Requested</span>
+                    <span>In Progress</span>
+                    <span>Preview</span>
+                    <span>Approved</span>
+                    <span>Done</span>
+                </div>
+                <div class="w-full h-2 bg-black border border-surface-border relative">
+                    <div id="status-progress-bar" class="h-full transition-all duration-1000 ease-in-out absolute left-0 top-0 w-0"></div>
+                </div>
+            </div>
+
+            <div class="space-y-4 font-mono text-sm bg-black p-4 brutalist-border border-surface-border">
                 <div class="flex justify-between border-b border-surface-border pb-2">
                     <span class="text-on-surface-variant">NAME</span>
                     <span id="res-name" class="text-white text-right"></span>
@@ -40,37 +58,43 @@
                     <span class="text-on-surface-variant">PLAN</span>
                     <span id="res-plan" class="text-white text-right"></span>
                 </div>
-                <div class="flex justify-between border-b border-surface-border pb-2">
+                <div class="flex justify-between pb-2">
                     <span class="text-on-surface-variant">PAYMENT</span>
                     <span id="res-payment" class="text-yellow-400 text-right"></span>
                 </div>
             </div>
 
-            <!-- Preview Link Section -->
-            <div id="preview-section" class="hidden mt-8 p-6 border-2 border-primary bg-black text-center">
-                <h4 class="text-primary font-bold mb-2 uppercase text-sm">> PREVIEW_AVAILABLE</h4>
-                <p class="text-xs text-on-surface-variant mb-6">Your project preview is ready for inspection.</p>
-                <a id="res-preview-link" href="#" target="_blank" class="inline-block bg-primary text-black font-bold py-3 px-8 hover:bg-white transition-colors uppercase tracking-widest text-sm">
-                    [ VIEW PREVIEW ]
-                </a>
-            </div>
-
-            <!-- Payment Needed Section -->
-            <div id="payment-section" class="mt-8 p-6 brutalist-border bg-black text-center">
-                <h4 class="text-yellow-400 font-bold mb-2 uppercase text-sm">PAYMENT REQUIRED AFTER APPROVAL</h4>
-                <p class="text-xs text-on-surface-variant">Final delivery and source code transfer will commence upon payment confirmation.</p>
+            <!-- Dynamic Actions Section -->
+            <div id="dynamic-actions" class="mt-8 space-y-4">
+                <!-- Injected via JS based on status -->
             </div>
         </div>
 
         <!-- Error State -->
-        <div id="track-error" class="hidden mt-8 p-4 border border-red-500 bg-red-500/10 text-red-500 font-mono text-sm text-center">
-            > ERR: BOOKING_ID_NOT_FOUND
+        <div id="track-error" class="hidden mt-8 p-4 border border-red-500 bg-red-500/10 text-center">
+            <span class="material-symbols-outlined text-red-500 text-4xl mb-2">warning</span>
+            <div class="text-red-500 font-mono text-sm">> ERR: INVALID BOOKING ID</div>
+            <p class="text-xs text-on-surface-variant mt-2">Please verify your input sequence and try again.</p>
         </div>
     </div>
 </section>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Check URL params for ID to auto-fill and submit
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlId = urlParams.get('id');
+    if (urlId) {
+        const idInput = document.getElementById('track-booking-id');
+        if (idInput) {
+            idInput.value = urlId;
+            // Use setTimeout to ensure event listeners are attached
+            setTimeout(() => {
+                document.getElementById('track-form').dispatchEvent(new Event('submit'));
+            }, 100);
+        }
+    }
+
     const trackForm = document.getElementById('track-form');
     if (trackForm) {
         trackForm.addEventListener('submit', async (e) => {
@@ -78,6 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const bookingId = document.getElementById('track-booking-id').value.trim().toUpperCase();
             if (!bookingId) return;
+
+            const btn = document.getElementById('initiate-trace-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="relative z-10 animate-pulse">> CONNECTING...</span>';
 
             document.getElementById('track-results').classList.add('hidden');
             document.getElementById('track-error').classList.add('hidden');
@@ -91,21 +120,104 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (data.status === 'success' && data.order) {
                     const order = data.order;
+                    const status = order.status || order.Status || 'REQUESTED';
+                    const paymentStatus = order.payment_status || order['Payment Status'] || 'PENDING';
+                    const approved = order.approved || order.Approved || 'NO';
+                    const previewLink = order.preview_link || order['Preview Link'];
 
-                    document.getElementById('res-status').innerText = order.status || order.Status || 'UNKNOWN';
+                    const statusEl = document.getElementById('res-status');
+                    statusEl.innerText = status;
+
+                    // Style status tag and progress bar
+                    const progressBar = document.getElementById('status-progress-bar');
+                    let progressPercent = 0;
+
+                    statusEl.classList.remove('text-primary', 'border-primary', 'text-yellow-400', 'border-yellow-400', 'text-blue-400', 'border-blue-400', 'text-purple-400', 'border-purple-400', 'text-green-500', 'border-green-500');
+
+                    if (status === 'REQUESTED') {
+                        progressPercent = 10;
+                        statusEl.classList.add('text-primary', 'border-primary');
+                        progressBar.style.backgroundColor = '#00FF41';
+                    } else if (status === 'IN_PROGRESS') {
+                        progressPercent = 35;
+                        statusEl.classList.add('text-yellow-400', 'border-yellow-400');
+                        progressBar.style.backgroundColor = '#facc15';
+                    } else if (status === 'PREVIEW_READY') {
+                        progressPercent = 60;
+                        statusEl.classList.add('text-blue-400', 'border-blue-400');
+                        progressBar.style.backgroundColor = '#60a5fa';
+                    } else if (status === 'APPROVED') {
+                        progressPercent = 85;
+                        statusEl.classList.add('text-purple-400', 'border-purple-400');
+                        progressBar.style.backgroundColor = '#c084fc';
+                    } else if (status === 'DELIVERED') {
+                        progressPercent = 100;
+                        statusEl.classList.add('text-green-500', 'border-green-500');
+                        progressBar.style.backgroundColor = '#22c55e';
+                    }
+
+                    // Reset to 0 then animate to target
+                    progressBar.style.width = '0%';
+                    setTimeout(() => {
+                        progressBar.style.width = progressPercent + '%';
+                    }, 50);
+
                     document.getElementById('res-name').innerText = order.name || order.Name || '-';
                     document.getElementById('res-project').innerText = order.project_type || order['Project Type'] || '-';
                     document.getElementById('res-plan').innerText = order.plan || order.Plan || '-';
-                    document.getElementById('res-payment').innerText = order.payment_status || order['Payment Status'] || 'PENDING';
+                    document.getElementById('res-payment').innerText = paymentStatus;
 
-                    const previewLink = order.preview_link || order['Preview Link'];
-                    if (previewLink && previewLink.trim() !== '') {
-                        document.getElementById('preview-section').classList.remove('hidden');
-                        document.getElementById('res-preview-link').href = previewLink;
-                    } else {
-                        document.getElementById('preview-section').classList.add('hidden');
+                    // Dynamic Actions
+                    const actionsContainer = document.getElementById('dynamic-actions');
+                    let actionHtml = '';
+
+                    if (status === 'PREVIEW_READY' && approved !== 'YES') {
+                        actionHtml = `
+                            <div class="p-6 border-2 border-blue-400 bg-blue-400/5 text-center">
+                                <h4 class="text-blue-400 font-bold mb-2 uppercase text-sm">> PREVIEW_AVAILABLE</h4>
+                                <p class="text-xs text-on-surface-variant mb-6">Your project preview is ready for inspection. Please review and approve.</p>
+                                ${previewLink ? `<div class="aspect-video w-full mb-6 brutalist-border border-surface-border bg-black">
+                                    <iframe src="${previewLink}" class="w-full h-full" sandbox="allow-same-origin allow-scripts"></iframe>
+                                </div>
+                                <a href="${previewLink}" target="_blank" class="block w-full border border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-black font-bold py-3 text-center transition-colors uppercase tracking-widest text-xs mb-4">
+                                    [ OPEN_FULL_PREVIEW ]
+                                </a>` : ''}
+                                <button onclick="window.approveTrackProject('${bookingId}', this)" class="block w-full bg-blue-400 text-black font-bold py-3 text-center hover:bg-white transition-colors uppercase tracking-widest text-sm disabled:opacity-50">
+                                    > APPROVE_PROJECT
+                                </button>
+                            </div>
+                        `;
+                    } else if (status === 'APPROVED') {
+                        actionHtml = `
+                            <div class="p-6 border-2 border-yellow-400 bg-yellow-400/10 text-center">
+                                <h4 class="text-yellow-400 font-bold mb-2 uppercase text-sm">PAYMENT REQUIRED</h4>
+                                <p class="text-xs text-on-surface-variant">Project approved. Final delivery and source code transfer will commence upon payment confirmation.</p>
+                                <button class="w-full bg-yellow-400 text-black font-bold py-3 px-8 hover:bg-white transition-colors uppercase tracking-widest text-sm mt-6 opacity-50 cursor-not-allowed">
+                                    [ INITIATE_PAYMENT_GATEWAY ]
+                                </button>
+                            </div>
+                        `;
+                    } else if (status === 'DELIVERED' && paymentStatus === 'DONE') {
+                        actionHtml = `
+                            <div class="p-6 border-2 border-green-500 bg-green-500/10 text-center">
+                                <h4 class="text-green-500 font-bold mb-2 uppercase text-sm">PROJECT DELIVERED</h4>
+                                <p class="text-xs text-on-surface-variant">All parameters met. Connection closed.</p>
+                                <button class="block w-full bg-green-500 text-black font-bold py-3 text-center hover:bg-white transition-colors uppercase tracking-widest text-sm mt-6">
+                                    > DOWNLOAD / ACCESS FINAL PROJECT
+                                </button>
+                            </div>
+                        `;
+                    } else if (previewLink) {
+                        actionHtml = `
+                            <div class="p-6 border-2 border-surface-border bg-black text-center">
+                                <a href="${previewLink}" target="_blank" class="block w-full bg-surface-border text-white font-bold py-3 text-center hover:bg-white hover:text-black transition-colors uppercase tracking-widest text-xs">
+                                    [ VIEW_PREVIEW_LINK ]
+                                </a>
+                            </div>
+                        `;
                     }
 
+                    actionsContainer.innerHTML = actionHtml;
                     document.getElementById('track-results').classList.remove('hidden');
                 } else {
                     document.getElementById('track-error').classList.remove('hidden');
@@ -114,8 +226,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Tracking error:', err);
                 document.getElementById('track-loading').classList.add('hidden');
                 document.getElementById('track-error').classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         });
+    }
+
+    // Global approve function for tracking page
+    window.approveTrackProject = async function(bookingId, btnElement) {
+        // We require login to approve
+        const storedUser = localStorage.getItem("dorkyUser");
+        if (!storedUser) {
+            showToast("Login required to approve projects.", "error");
+            // Prompt login
+            if(window.signInWithGoogle) window.signInWithGoogle();
+            return;
+        }
+
+        btnElement.disabled = true;
+        const originalText = btnElement.innerHTML;
+        btnElement.innerHTML = '> PROCESSING...';
+
+        try {
+            const user = JSON.parse(storedUser);
+            const response = await fetch(`/api/approve/${bookingId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: user.email })
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                showToast("Approved successfully.", "success");
+                setTimeout(() => {
+                    // Re-trigger the form submission to update UI
+                    document.getElementById('track-form').dispatchEvent(new Event('submit'));
+                }, 1000);
+            } else {
+                showToast(result.message || "Failed to approve project.", "error");
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalText;
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Error processing approval.", "error");
+            btnElement.disabled = false;
+            btnElement.innerHTML = originalText;
+        }
     }
 });
 </script>

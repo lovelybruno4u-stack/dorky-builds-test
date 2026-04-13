@@ -35,7 +35,15 @@
             </button>
         </div>
 
-        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> ACTIVE_PROJECTS</h3>
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-bold text-white uppercase tracking-wider">> ACTIVE_PROJECTS</h3>
+            <!-- Filters -->
+            <div class="flex gap-2 text-sm">
+                <button class="dash-filter active border border-surface-border px-3 py-1 hover:border-primary hover:text-primary transition-colors text-white" data-filter="all">[ ALL ]</button>
+                <button class="dash-filter border border-surface-border px-3 py-1 hover:border-primary hover:text-primary transition-colors text-on-surface-variant" data-filter="active">[ IN_PROGRESS ]</button>
+                <button class="dash-filter border border-surface-border px-3 py-1 hover:border-primary hover:text-primary transition-colors text-on-surface-variant" data-filter="completed">[ COMPLETED ]</button>
+            </div>
+        </div>
 
         <div id="orders-loading" class="text-primary font-mono animate-pulse p-4 text-center border-2 border-dashed border-surface-border">
             > FETCHING_RECORDS...
@@ -92,16 +100,59 @@ document.addEventListener('DOMContentLoaded', () => {
                 grid.innerHTML = '';
 
                 data.orders.forEach(order => {
-                    const status = order.status || order.Status || 'UNKNOWN';
+                    const status = order.status || order.Status || 'REQUESTED';
                     const bookingId = order.booking_id || order['Booking ID'] || 'DB-UNKNOWN';
                     const projectName = order.project_type || order['Project Type'] || 'Custom Build';
                     const previewLink = order.preview_link || order['Preview Link'];
+                    const paymentStatus = order.payment_status || order['Payment Status'] || 'PENDING';
+                    const approved = order.approved || order.Approved || 'NO';
 
-                    let previewBtnHtml = '';
-                    if (previewLink && previewLink.trim() !== '') {
-                        previewBtnHtml = `
-                            <div class="mt-6 pt-4 border-t border-surface-border">
-                                <a href="${previewLink}" target="_blank" class="block w-full bg-primary text-black font-bold py-2 text-center hover:bg-white transition-colors uppercase tracking-widest text-xs">
+                    // Determine filter category
+                    let filterClass = 'active'; // Default to active
+                    if (status === 'DELIVERED') {
+                        filterClass = 'completed';
+                    }
+
+                    // Progress Bar Logic
+                    let progressPercent = 25;
+                    let statusColor = 'text-primary';
+                    if (status === 'IN_PROGRESS') { progressPercent = 50; statusColor = 'text-yellow-400'; }
+                    else if (status === 'PREVIEW_READY') { progressPercent = 75; statusColor = 'text-blue-400'; }
+                    else if (status === 'APPROVED') { progressPercent = 90; statusColor = 'text-purple-400'; }
+                    else if (status === 'DELIVERED') { progressPercent = 100; statusColor = 'text-green-500'; }
+
+                    let actionHtml = '';
+
+                    // Action buttons based on status
+                    if (status === 'PREVIEW_READY' && approved !== 'YES') {
+                        actionHtml = `
+                            <div class="mt-4 pt-4 border-t border-surface-border flex flex-col gap-2">
+                                ${previewLink ? `<a href="${previewLink}" target="_blank" class="block w-full border border-primary text-primary hover:bg-primary hover:text-black font-bold py-2 text-center transition-colors uppercase tracking-widest text-xs">[ OPEN_FULL_PREVIEW ]</a>` : ''}
+                                <button onclick="approveProject('${bookingId}', this)" class="block w-full bg-primary text-black font-bold py-2 text-center hover:bg-white transition-colors uppercase tracking-widest text-xs disabled:opacity-50">
+                                    > APPROVE_PROJECT
+                                </button>
+                            </div>
+                        `;
+                    } else if (status === 'APPROVED') {
+                        actionHtml = `
+                            <div class="mt-4 pt-4 border-t border-surface-border flex flex-col gap-2">
+                                <div class="bg-yellow-400/10 border border-yellow-400 text-yellow-400 p-2 text-xs text-center font-bold">
+                                    PAYMENT REQUIRED TO UNLOCK FINAL DELIVERY
+                                </div>
+                            </div>
+                        `;
+                    } else if (status === 'DELIVERED' && paymentStatus === 'DONE') {
+                        actionHtml = `
+                            <div class="mt-4 pt-4 border-t border-surface-border flex flex-col gap-2">
+                                <button class="block w-full bg-green-500 text-black font-bold py-2 text-center hover:bg-white transition-colors uppercase tracking-widest text-xs">
+                                    > DOWNLOAD / ACCESS FINAL PROJECT
+                                </button>
+                            </div>
+                        `;
+                    } else if (previewLink) {
+                        actionHtml = `
+                            <div class="mt-4 pt-4 border-t border-surface-border flex flex-col gap-2">
+                                <a href="${previewLink}" target="_blank" class="block w-full bg-surface-border text-white font-bold py-2 text-center hover:bg-white hover:text-black transition-colors uppercase tracking-widest text-xs">
                                     [ VIEW_PREVIEW ]
                                 </a>
                             </div>
@@ -109,31 +160,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     const cardHtml = `
-                        <div class="brutalist-border bg-surface p-6 hover:border-primary transition-colors flex flex-col h-full relative group">
-                            <div class="absolute top-0 right-0 p-2 text-xs font-mono font-bold text-primary opacity-50 group-hover:opacity-100 transition-opacity">
-                                ${status}
-                            </div>
+                        <div class="dash-card ${filterClass} brutalist-border bg-surface p-6 hover:border-primary transition-colors flex flex-col h-full relative group">
 
                             <h4 class="text-xl font-bold text-white mb-1 group-hover:text-primary transition-colors">${projectName}</h4>
-                            <p class="font-mono text-sm text-on-surface-variant mb-6 border-b border-surface-border pb-4">ID: ${bookingId}</p>
+                            <p class="font-mono text-sm text-on-surface-variant mb-4 pb-2 border-b border-surface-border">ID: ${bookingId}</p>
 
-                            <ul class="text-xs text-on-surface-variant space-y-2 mb-6 flex-grow font-mono">
+                            <div class="mb-4">
+                                <div class="flex justify-between text-xs font-bold font-mono mb-1">
+                                    <span class="text-on-surface-variant">STATUS</span>
+                                    <span class="${statusColor}">${status}</span>
+                                </div>
+                                <div class="w-full h-1 bg-black border border-surface-border">
+                                    <div class="h-full bg-primary transition-all duration-500" style="width: ${progressPercent}%; background-color: ${progressPercent === 100 ? '#22c55e' : (progressPercent === 75 ? '#60a5fa' : (progressPercent === 50 ? '#facc15' : '#00FF41'))}"></div>
+                                </div>
+                            </div>
+
+                            <ul class="text-xs text-on-surface-variant space-y-2 mb-4 flex-grow font-mono">
                                 <li>> PLAN: <span class="text-white">${order.plan || order.Plan || '-'}</span></li>
-                                <li>> PAYMENT: <span class="text-yellow-400">${order.payment_status || order['Payment Status'] || 'PENDING'}</span></li>
-                                <li>> SPEED: <span class="text-white">${order.delivery_speed || order['Delivery Speed'] || 'Normal'}</span></li>
+                                <li>> PAYMENT: <span class="text-yellow-400">${paymentStatus}</span></li>
                             </ul>
 
-                            <a href="/track?id=${bookingId}" class="inline-block text-primary hover:text-white uppercase text-xs">
+                            <a href="/track?id=${bookingId}" class="inline-block text-primary hover:text-white uppercase text-xs mb-2">
                                 > FULL_TRACE_LOG
                             </a>
 
-                            ${previewBtnHtml}
+                            ${actionHtml}
                         </div>
                     `;
                     grid.innerHTML += cardHtml;
                 });
 
                 grid.classList.remove('hidden');
+
+                // Set up filtering
+                setupFilters();
             } else {
                 document.getElementById('no-orders-msg').classList.remove('hidden');
             }
@@ -145,16 +205,78 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function setupFilters() {
+        const filterBtns = document.querySelectorAll('.dash-filter');
+        const dashCards = document.querySelectorAll('.dash-card');
+
+        if (filterBtns.length > 0) {
+            filterBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterBtns.forEach(b => {
+                        b.classList.remove('active', 'text-white');
+                        b.classList.add('text-on-surface-variant');
+                    });
+
+                    btn.classList.add('active', 'text-white');
+                    btn.classList.remove('text-on-surface-variant');
+
+                    const filterValue = btn.getAttribute('data-filter');
+
+                    dashCards.forEach(card => {
+                        if (filterValue === 'all' || card.classList.contains(filterValue)) {
+                            card.style.display = 'flex';
+                        } else {
+                            card.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    window.approveProject = async function(bookingId, btnElement) {
+        btnElement.disabled = true;
+        const originalText = btnElement.innerHTML;
+        btnElement.innerHTML = '> PROCESSING...';
+
+        try {
+            const user = JSON.parse(localStorage.getItem("dorkyUser"));
+            const response = await fetch(`/api/approve/${bookingId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: user.email })
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                showToast("Approved successfully.", "success");
+                setTimeout(() => {
+                    loadDashboardData(); // Refresh UI
+                }, 1000);
+            } else {
+                showToast(result.message || "Failed to approve project.", "error");
+                btnElement.disabled = false;
+                btnElement.innerHTML = originalText;
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Error processing approval.", "error");
+            btnElement.disabled = false;
+            btnElement.innerHTML = originalText;
+        }
+    }
+
     // Call initially
     loadDashboardData();
 
-    // Listen for auth state changes (hacky way since we don't have real reactive state)
     const originalSignIn = window.signInWithGoogle;
     const originalSignOut = window.signOut;
 
     window.signInWithGoogle = function() {
         if(originalSignIn) originalSignIn();
-        setTimeout(loadDashboardData, 1100); // Wait for mock delay
+        setTimeout(loadDashboardData, 1100);
     };
 
     window.signOut = function() {
