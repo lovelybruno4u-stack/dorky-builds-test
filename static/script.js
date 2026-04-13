@@ -197,6 +197,13 @@ if (requirementsForm) {
         btn.classList.add('animate-pulse');
 
         const formData = new FormData();
+        const storedUser = localStorage.getItem("dorkyUser");
+        if (storedUser) {
+            const userObj = JSON.parse(storedUser);
+            formData.append('uid', userObj.uid);
+        } else {
+            formData.append('uid', 'anonymous');
+        }
         formData.append('name', document.getElementById('req-name').value);
         formData.append('email', document.getElementById('req-email').value);
         formData.append('phone', document.getElementById('req-phone').value);
@@ -215,6 +222,7 @@ if (requirementsForm) {
         formData.append('features', document.getElementById('req-features').value);
 
         try {
+            console.log("📦 [FRONTEND] Transmitting payload to /submit-requirements...");
             const response = await fetch('/submit-requirements', {
                 method: 'POST',
                 body: formData

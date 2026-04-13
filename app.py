@@ -17,46 +17,54 @@ sheet = None
 
 def init_google_sheets():
     global sheet, SHEET_CONNECTED
+
+    creds_json_str = os.environ.get("GOOGLE_CREDS_JSON")
+    sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+
+    if not creds_json_str or not sheet_id:
+        print("❌ Google Sheets connection failed: GOOGLE_CREDS_JSON or GOOGLE_SHEET_ID not set. Using degraded mode (CSV).")
+        return
+
     try:
-        creds_json_str = os.environ.get("GOOGLE_CREDS_JSON")
-        sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+        import json
+        creds_dict = json.loads(creds_json_str)
+        scope = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        client = gspread.authorize(creds)
 
-        if creds_json_str and sheet_id:
-            creds_dict = json.loads(creds_json_str)
-            scope = [
-                "https://spreadsheets.google.com/feeds",
-                "https://www.googleapis.com/auth/drive"
-            ]
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-            client = gspread.authorize(creds)
+        try:
             sheet = client.open_by_key(sheet_id).sheet1
-            SHEET_CONNECTED = True
+        except Exception as e:
+            if "404" in str(e):
+                print(f"❌ Google Sheets connection failed: 404 Not Found. Make sure you shared the sheet ({sheet_id}) with the service account email! Error: {e}")
+            else:
+                print(f"❌ Google Sheets connection failed during open_by_key: {e}")
+            return
 
-            # Auto create headers
-            headers = [
-                "booking_id", "name", "email", "phone",
-                "project_type", "plan", "delivery_speed", "features",
-                "budget", "timeline",
-                "status", "preview_link",
-                "payment_status", "approved", "created_at", "last_updated"
-            ]
-            try:
-                existing = sheet.row_values(1)
-                if existing != headers:
-                    sheet.insert_row(headers, 1)
-            except Exception as e:
-                # If sheet is totally empty, row_values might fail
+        SHEET_CONNECTED = True
+
+        # Auto create headers including UID and displayName
+        headers = [
+            "booking_id", "uid", "name", "email", "phone",
+            "project_type", "plan", "delivery_speed", "features",
+            "budget", "timeline",
+            "status", "preview_link",
+            "payment_status", "approved", "created_at", "last_updated"
+        ]
+        try:
+            existing = sheet.row_values(1)
+            if existing != headers:
                 sheet.insert_row(headers, 1)
+        except Exception as e:
+            # If sheet is totally empty, row_values might fail
+            sheet.insert_row(headers, 1)
 
-            print("Successfully connected to Google Sheets and verified headers.")
-        else:
-            print("Warning: GOOGLE_CREDS_JSON or GOOGLE_SHEET_ID not set. Using local CSV fallback.")
+        print("✅ Successfully connected to Google Sheets and verified headers.")
     except Exception as e:
-        print(f"Error connecting to Google Sheets: {e}. Using local CSV fallback.")
-
-# Initialize on startup
-init_google_sheets()
-
+        print(f"❌ Google Sheets connection failed: {e}. Using degraded mode (CSV).")
 def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
@@ -123,8 +131,10 @@ def submit_requirements():
     booking_id = generate_booking_id()
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    uid = data.get('uid', 'anonymous')
     row_data = [
         booking_id,
+        uid,
         data.get('name', ''),
         data.get('email', ''),
         data.get('phone', ''),
@@ -142,12 +152,17 @@ def submit_requirements():
         current_time    # last_updated
     ]
 
+    print(f"📦 [SUBMIT] Incoming payload for {data.get('email')}: {data}")
+
     if SHEET_CONNECTED:
         try:
             sheet.append_row(row_data)
+            print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to Google Sheets.")
         except Exception as e:
-            print(f"Error appending to Google Sheets: {e}")
+            print(f"❌ [SHEETS] Error writing booking {booking_id} to Google Sheets: {e}")
             return jsonify({"status": "error", "message": "Database error while saving request."}), 500
+    else:
+        print(f"⚠️ [CSV FALLBACK] SHEET_CONNECTED is False. Writing booking {booking_id} to local CSV.")
 
     # Save locally to CSV fallback
     csv_file = 'leads.csv'
@@ -156,7 +171,7 @@ def submit_requirements():
         with open(csv_file, mode='a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(["booking_id", "name", "email", "phone", "project_type", "plan", "delivery_speed", "features", "budget", "timeline", "status", "preview_link", "payment_status", "approved", "created_at", "last_updated"])
+                writer.writerow(["booking_id", "uid", "name", "email", "phone", "project_type", "plan", "delivery_speed", "features", "budget", "timeline", "status", "preview_link", "payment_status", "approved", "created_at", "last_updated"])
             writer.writerow(row_data)
     except Exception as e:
         print(f"Error saving lead locally: {e}")

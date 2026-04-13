@@ -141,6 +141,7 @@ pointer-events: none;
   window.loginWithGoogle = function() {
     signInWithPopup(auth, provider)
       .then((result) => {
+        console.log("✅ [FIREBASE] Login successful for:", result.user.email);
         const user = result.user;
         window.currentUser = {
             name: user.displayName,
@@ -155,7 +156,7 @@ pointer-events: none;
         }
       })
       .catch((error) => {
-        console.error("Login failed:", error);
+        console.error("❌ [FIREBASE] Login failed:", error);
         if(window.showToast) {
             window.showToast("Authentication failed.", "error");
         }
