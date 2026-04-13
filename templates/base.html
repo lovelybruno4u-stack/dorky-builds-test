@@ -87,7 +87,9 @@ pointer-events: none;
     GoogleAuthProvider,
     signInWithPopup,
     onAuthStateChanged,
-    signOut
+    signOut,
+    setPersistence,
+    browserLocalPersistence
   } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 
   const firebaseConfig = {
@@ -108,6 +110,11 @@ pointer-events: none;
 
   const auth = getAuth(app);
   const provider = new GoogleAuthProvider();
+
+  // Set persistence
+  setPersistence(auth, browserLocalPersistence)
+      .then(() => console.log("✅ [FIREBASE] Init success: Local persistence enabled."))
+      .catch((e) => console.log("❌ [FIREBASE] Init failed to set persistence:", e));
 
   // Expose global object
   window.currentUser = null;
@@ -139,6 +146,7 @@ pointer-events: none;
 
   // Login Function
   window.loginWithGoogle = function() {
+    console.log("⏳ [FIREBASE] Login attempt started...");
     signInWithPopup(auth, provider)
       .then((result) => {
         console.log("✅ [FIREBASE] Login successful for:", result.user.email);
