@@ -27,7 +27,6 @@ const animateCounters = () => {
             const target = +counter.getAttribute('data-target');
             const count = +counter.innerText;
 
-            // Lower inc to slow and higher to fast
             const inc = target / speed;
 
             if (count < target) {
@@ -38,7 +37,6 @@ const animateCounters = () => {
             }
         };
 
-        // Setup Intersection Observer to start animation when visible
         const observer = new IntersectionObserver((entries) => {
             if(entries[0].isIntersecting) {
                 updateCount();
@@ -86,7 +84,6 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             target.scrollIntoView({
                 behavior: 'smooth'
             });
-            // Close mobile nav if open
             const mobileNav = document.getElementById('mobile-nav');
             if (mobileNav && !mobileNav.classList.contains('translate-x-full')) {
                 mobileNav.classList.add('translate-x-full');
@@ -116,13 +113,11 @@ const projectCards = document.querySelectorAll('.project-card');
 if (filterBtns.length > 0) {
     filterBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            // Remove active class from all
             filterBtns.forEach(b => {
                 b.classList.remove('active', 'text-white');
                 b.classList.add('text-on-surface-variant');
             });
 
-            // Add active class to clicked
             btn.classList.add('active', 'text-white');
             btn.classList.remove('text-on-surface-variant');
 
@@ -195,7 +190,7 @@ function openModal(projectId) {
     `;
 
     caseModal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden'; // Prevent scrolling
+    document.body.style.overflow = 'hidden';
 }
 
 function closeModal() {
@@ -204,7 +199,6 @@ function closeModal() {
     document.body.style.overflow = 'auto';
 }
 
-// Close modal on outside click
 if(caseModal) {
     caseModal.addEventListener('click', (e) => {
         if (e.target === caseModal) {
@@ -373,7 +367,10 @@ const moduleSelectFallback = document.getElementById('module-select-fallback');
 let onboardingState = {
     module: '',
     projectType: '',
-    plan: ''
+    plan: '',
+    basePrice: 0,
+    speed: '',
+    speedPrice: 0
 };
 
 const moduleProjects = {
@@ -401,18 +398,15 @@ const moduleProjects = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if we are on the requirements page
     const step1 = document.getElementById('step-1');
     if (!step1) return;
 
-    // Read URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const urlModule = urlParams.get('module');
     const urlPlan = urlParams.get('plan');
 
     if (urlModule && moduleProjects[urlModule]) {
         onboardingState.module = urlModule;
-        // Populate Step 1 Options
         if (projectOptionsContainer) {
             projectOptionsContainer.innerHTML = moduleProjects[urlModule].map(proj => `
                 <div class="brutalist-border bg-surface p-4 cursor-pointer hover:border-primary transition-colors group" onclick="selectProjectType('${proj.name}')">
@@ -425,20 +419,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if (moduleSelectFallback) moduleSelectFallback.classList.add('hidden');
         goToStep(1);
     } else if (urlPlan) {
-        // Came from pricing page directly, skip to step 3 and leave project type empty
+        // Find price roughly based on plan name
+        const planPrices = {
+            'MINI': 500, 'STARTER': 999, 'BASIC': 2999, 'STANDARD': 4999,
+            'PRO': 9999, 'ADVANCED': 14999, 'ELITE': 29999, 'ENTERPRISE': 50000
+        };
         onboardingState.plan = urlPlan;
+        onboardingState.basePrice = planPrices[urlPlan] || 0;
+
         const reqPlanInput = document.getElementById('req-plan');
         if (reqPlanInput) reqPlanInput.value = urlPlan;
 
         const reqProjectInput = document.getElementById('req-project');
         if (reqProjectInput) {
             reqProjectInput.value = "Unspecified (from Pricing)";
-            reqProjectInput.removeAttribute('readonly'); // allow user to edit
+            reqProjectInput.removeAttribute('readonly');
         }
 
-        goToStep(3);
+        goToStep('speed');
     } else {
-        // No module or plan selected
         if (projectOptionsContainer) projectOptionsContainer.classList.add('hidden');
         if (moduleSelectFallback) moduleSelectFallback.classList.remove('hidden');
         goToStep(1);
@@ -446,7 +445,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function goToStep(stepNum) {
-    // Update UI
     document.querySelectorAll('.step-container').forEach(el => {
         el.classList.add('hidden');
         el.classList.remove('flex');
@@ -456,22 +454,37 @@ function goToStep(stepNum) {
     if (targetStep) {
         targetStep.classList.remove('hidden');
         if (stepNum === 4) {
-            targetStep.classList.add('flex'); // Success step needs flex
+            targetStep.classList.add('flex');
         }
     }
 
-    // Update Header indicators
     if (stepIndicator && currentStepNum && progressBar) {
-        currentStepNum.innerText = stepNum > 3 ? 3 : stepNum; // Cap at 3 for UI
         if (stepNum === 1) {
+            currentStepNum.innerText = '1';
             stepIndicator.innerText = '> SELECT_PROJECT';
-            progressBar.style.width = '33%';
+            progressBar.style.width = '25%';
         } else if (stepNum === 2) {
+            currentStepNum.innerText = '2';
             stepIndicator.innerText = '> ALLOCATE_PLAN';
-            progressBar.style.width = '66%';
+            progressBar.style.width = '50%';
+        } else if (stepNum === 'speed') {
+            currentStepNum.innerText = '3';
+            stepIndicator.innerText = '> SET_DELIVERY';
+            progressBar.style.width = '75%';
+            // Update UI base price display
+            const basePriceDisplay = document.getElementById('current-base-price');
+            if (basePriceDisplay) basePriceDisplay.innerText = `₹${onboardingState.basePrice.toLocaleString()}`;
         } else if (stepNum === 3) {
+            currentStepNum.innerText = '4';
             stepIndicator.innerText = '> INPUT_SPECS';
             progressBar.style.width = '100%';
+
+            // Update total price display
+            const finalTotalDisplay = document.getElementById('final-total-price');
+            if (finalTotalDisplay) {
+                const total = onboardingState.basePrice + onboardingState.speedPrice;
+                finalTotalDisplay.innerText = `₹${total.toLocaleString()}`;
+            }
         }
     }
 }
@@ -485,16 +498,26 @@ function selectProjectType(projectName) {
     goToStep(2);
 }
 
-function selectPlan(planName) {
+function selectPlan(planName, price) {
     onboardingState.plan = planName;
+    onboardingState.basePrice = price;
     const reqPlanInput = document.getElementById('req-plan');
     if (reqPlanInput) {
         reqPlanInput.value = planName;
     }
+    goToStep('speed');
+}
+
+function selectSpeed(speedName, extraPrice) {
+    onboardingState.speed = speedName;
+    onboardingState.speedPrice = extraPrice;
+    const reqSpeedInput = document.getElementById('req-speed');
+    if (reqSpeedInput) {
+        reqSpeedInput.value = speedName;
+    }
     goToStep(3);
 }
 
-// Handle requirements form submission
 if (requirementsForm) {
     requirementsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -514,6 +537,9 @@ if (requirementsForm) {
 
         const reqPlanInput = document.getElementById('req-plan');
         formData.append('plan', reqPlanInput ? reqPlanInput.value : onboardingState.plan);
+
+        const reqSpeedInput = document.getElementById('req-speed');
+        formData.append('deliverySpeed', reqSpeedInput ? reqSpeedInput.value : onboardingState.speed);
 
         formData.append('budget', document.getElementById('req-budget').value);
         formData.append('timeline', document.getElementById('req-timeline').value);

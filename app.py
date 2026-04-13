@@ -60,30 +60,26 @@ def submit_requirements():
         "phone": data.get('phone', ''),
         "project_type": data.get('projectType', ''),
         "plan": data.get('plan', ''),
+        "delivery_speed": data.get('deliverySpeed', ''),
         "budget": data.get('budget', ''),
         "timeline": data.get('timeline', ''),
         "features": data.get('features', '')
     }
 
-    # Mock Google Sheets Integration via webhook
-    # In a real app, you would send this payload to a Zapier/Make webhook or directly to Google Sheets API
     try:
-        # Example webhook URL (replace with actual if needed)
-        # requests.post("https://hook.us1.make.com/xxxxxx", json=payload)
         pass
     except Exception as e:
         print(f"Webhook error: {e}")
 
-    # Also save locally for verification/backup
     csv_file = 'leads.csv'
     file_exists = os.path.isfile(csv_file)
     try:
         with open(csv_file, mode='a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             if not file_exists:
-                writer.writerow(['Booking ID', 'Name', 'Email', 'Phone', 'Project Type', 'Plan', 'Budget', 'Timeline', 'Features'])
+                writer.writerow(['Booking ID', 'Name', 'Email', 'Phone', 'Project Type', 'Plan', 'Delivery Speed', 'Budget', 'Timeline', 'Features'])
             writer.writerow([payload["booking_id"], payload["name"], payload["email"], payload["phone"],
-                             payload["project_type"], payload["plan"], payload["budget"], payload["timeline"], payload["features"]])
+                             payload["project_type"], payload["plan"], payload["delivery_speed"], payload["budget"], payload["timeline"], payload["features"]])
     except Exception as e:
         print(f"Error saving lead locally: {e}")
 
