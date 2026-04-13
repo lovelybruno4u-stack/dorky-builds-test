@@ -66,6 +66,15 @@ position: absolute;
 z-index: 100;
 pointer-events: none;
 }
+.reveal-section {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s ease-out;
+}
+.reveal-section.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
 </style>
 </head>
 <body class="selection:bg-primary selection:text-black min-h-screen flex flex-col">
