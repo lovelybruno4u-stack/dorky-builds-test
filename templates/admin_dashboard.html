@@ -190,7 +190,7 @@
                 </div>
                 <div class="flex items-center justify-start pt-6">
                     <label class="flex items-center gap-2 text-sm text-primary cursor-pointer">
-                        <input type="checkbox" name="active" {% if str(banner.get('active', '')).upper() == 'TRUE' %}checked{% endif %} class="bg-surface border-primary w-5 h-5">
+                        <input type="checkbox" name="active" {% if banner.active %}checked{% endif %} class="bg-surface border-primary w-5 h-5">
                         [ ENABLE_BANNER ]
                     </label>
                 </div>

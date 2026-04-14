@@ -739,7 +739,10 @@ def admin_dashboard():
             coupons = coupons_sheet.get_all_records()
 
             banners = banner_sheet.get_all_records()
-            if banners: banner = banners[0]
+            if banners:
+                banner = banners[0]
+                # Normalize 'active' to boolean for template logic
+                banner['active'] = str(banner.get('active', '')).upper() == 'TRUE'
 
             sett = settings_sheet.get_all_records()
             settings = {str(r.get('setting_name')).strip(): str(r.get('value')).strip() for r in sett if r.get('setting_name')}
