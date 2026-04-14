@@ -13,7 +13,16 @@
         </a>
     </div>
 
-    <div class="w-full flex-col">
+    <!-- Admin Tabs -->
+    <div class="flex gap-2 text-sm overflow-x-auto pb-4 mb-8 font-mono">
+        <button class="admin-tab-btn active bg-red-500 text-black px-4 py-2 font-bold border-2 border-red-500" data-tab="orders">> ORDERS</button>
+        <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="coupons">> COUPONS</button>
+        <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="banner">> BANNER</button>
+        <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="settings">> SETTINGS</button>
+    </div>
+
+    <!-- ORDERS PANEL -->
+    <div id="tab-orders" class="admin-tab-content">
         <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> GLOBAL_ORDERS</h3>
 
         {% if orders %}
@@ -23,9 +32,9 @@
                     <tr>
                         <th class="p-4">ID</th>
                         <th class="p-4">Client</th>
-                        <th class="p-4">Project</th>
-                        <th class="p-4">Speed / Status</th>
-                        <th class="p-4 w-1/3">Admin Actions</th>
+                        <th class="p-4">Project & Finances</th>
+                        <th class="p-4">Status & Preview</th>
+                        <th class="p-4">Admin Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-surface-border">
@@ -37,15 +46,27 @@
                             <div class="text-on-surface-variant">{{ order.get('email') or order.get('Email') }}</div>
                         </td>
                         <td class="p-4">
-                            <div class="text-white">{{ order.get('project_type') or order.get('Project Type') }}</div>
-                            <div class="text-on-surface-variant">{{ order.get('plan') or order.get('Plan') }}</div>
+                            <div class="text-white font-bold">{{ order.get('project_type') or order.get('Project Type') }}</div>
+                            <div class="text-on-surface-variant">Total: ₹{{ order.get('total_price') }}</div>
+                            <div class="text-on-surface-variant">Adv: ₹{{ order.get('advance_paid') }}</div>
+                            {% if order.get('coupon_applied') %}
+                            <div class="text-green-400">Cupn: {{ order.get('coupon_applied') }} (-₹{{ order.get('discount_amount') }})</div>
+                            {% endif %}
                         </td>
                         <td class="p-4">
                             {% set status = order.get('status') or order.get('Status') %}
-                            <div class="text-white mb-1">Spd: {{ order.get('delivery_speed') or order.get('Delivery Speed') }}</div>
-                            <span class="px-2 py-1 bg-black border border-surface-border inline-block {{ 'text-primary' if status == 'REQUESTED' else 'text-yellow-400' if status == 'IN_PROGRESS' else 'text-blue-400' if status == 'PREVIEW_READY' else 'text-purple-400' if status == 'APPROVED' else 'text-green-500' }}">
-                                {{ status }}
-                            </span>
+                            <div class="mb-2">
+                                <span class="px-2 py-1 bg-black border border-surface-border inline-block {{ 'text-primary' if status == 'REQUESTED' else 'text-yellow-400' if status == 'IN_PROGRESS' else 'text-blue-400' if status == 'PREVIEW_READY' else 'text-purple-400' if status == 'APPROVED' else 'text-green-500' }}">
+                                    {{ status }}
+                                </span>
+                            </div>
+
+                            <div class="text-white mb-2">Pymt: <span class="{{ 'text-green-500' if order.get('payment_status') == 'Verified' else 'text-yellow-400' }}">{{ order.get('payment_status') }}</span></div>
+
+                            {% if order.get('screenshot_url') %}
+                            <a href="{{ order.get('screenshot_url') }}" target="_blank" class="text-blue-400 hover:underline">View Receipt</a><br>
+                            <span class="text-on-surface-variant text-[10px]">Ref: {{ order.get('upi_ref_id') }}</span>
+                            {% endif %}
                         </td>
                         <td class="p-4">
                             <div class="flex flex-col gap-2 admin-form" data-id="{{ order.get('booking_id') or order.get('Booking ID') }}">
@@ -61,8 +82,9 @@
 
                                 <div class="flex gap-2">
                                     <select name="payment_status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
-                                        <option value="PENDING" {% if order.get('payment_status') == 'PENDING' or order.get('Payment Status') == 'PENDING' %}selected{% endif %}>PENDING</option>
-                                        <option value="DONE" {% if order.get('payment_status') == 'DONE' or order.get('Payment Status') == 'DONE' %}selected{% endif %}>DONE</option>
+                                        <option value="Pending" {% if order.get('payment_status') == 'Pending' %}selected{% endif %}>Pending</option>
+                                        <option value="Verified" {% if order.get('payment_status') == 'Verified' %}selected{% endif %}>Verified</option>
+                                        <option value="Rejected" {% if order.get('payment_status') == 'Rejected' %}selected{% endif %}>Rejected</option>
                                     </select>
                                     <button type="button" onclick="updateOrder(this)" class="w-1/2 bg-red-500 text-black font-bold py-2 hover:bg-white transition-colors text-xs">
                                         SAVE
@@ -81,9 +103,152 @@
         </div>
         {% endif %}
     </div>
+
+    <!-- COUPONS PANEL -->
+    <div id="tab-coupons" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> COUPON_MANAGEMENT</h3>
+
+        <form method="POST" action="/admin/add_coupon" class="brutalist-border bg-black p-6 mb-8 flex flex-col md:flex-row gap-4 items-end">
+            <div class="w-full md:w-1/5">
+                <label class="block text-xs text-primary mb-1">CODE</label>
+                <input type="text" name="coupon_code" required class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
+            </div>
+            <div class="w-full md:w-1/5">
+                <label class="block text-xs text-primary mb-1">TYPE</label>
+                <select name="discount_type" class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
+                    <option value="flat">Flat</option>
+                    <option value="percent">Percent</option>
+                </select>
+            </div>
+            <div class="w-full md:w-1/5">
+                <label class="block text-xs text-primary mb-1">VALUE</label>
+                <input type="number" name="discount_value" required class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
+            </div>
+            <div class="w-full md:w-1/5">
+                <label class="block text-xs text-primary mb-1">MIN_ORDER</label>
+                <input type="number" name="min_order_value" value="0" class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
+            </div>
+            <div class="w-full md:w-1/5">
+                <label class="flex items-center gap-2 text-xs text-primary mb-2">
+                    <input type="checkbox" name="active" checked class="bg-surface border-primary"> ACTIVE
+                </label>
+                <button type="submit" class="w-full bg-red-500 text-black font-bold py-2 hover:bg-white transition-colors text-xs">> ADD</button>
+            </div>
+        </form>
+
+        <!-- Current Coupons list (read only for now) -->
+        <div class="overflow-x-auto brutalist-border bg-surface border-surface-border">
+            <table class="w-full text-left font-mono text-xs">
+                <thead class="bg-black text-on-surface-variant border-b border-surface-border">
+                    <tr>
+                        <th class="p-4">Code</th>
+                        <th class="p-4">Type</th>
+                        <th class="p-4">Value</th>
+                        <th class="p-4">Min Order</th>
+                        <th class="p-4">Active</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-surface-border text-white">
+                    {% for cup in coupons %}
+                    <tr class="hover:bg-black/50 transition-colors">
+                        <td class="p-4 font-bold text-primary">{{ cup.get('coupon_code') }}</td>
+                        <td class="p-4">{{ cup.get('discount_type') }}</td>
+                        <td class="p-4">{{ cup.get('discount_value') }}</td>
+                        <td class="p-4">₹{{ cup.get('min_order_value') }}</td>
+                        <td class="p-4">{{ cup.get('active') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- BANNER PANEL -->
+    <div id="tab-banner" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> BANNER_CONTROL</h3>
+        <form method="POST" action="/admin/update_banner" class="brutalist-border bg-black p-6 space-y-4 max-w-2xl">
+            <div>
+                <label class="block text-xs text-primary mb-1">BANNER_TEXT</label>
+                <input type="text" name="banner_text" value="{{ banner.get('banner_text', '') }}" class="w-full bg-surface border border-surface-border p-3 text-white focus:border-red-500 font-mono text-sm">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-primary mb-1">DURATION (SECONDS)</label>
+                    <input type="number" name="duration_seconds" value="{{ banner.get('duration_seconds', '30') }}" class="w-full bg-surface border border-surface-border p-3 text-white focus:border-red-500 font-mono text-sm">
+                </div>
+                <div class="flex items-center justify-start pt-6">
+                    <label class="flex items-center gap-2 text-sm text-primary cursor-pointer">
+                        <input type="checkbox" name="active" {% if str(banner.get('active', '')).upper() == 'TRUE' %}checked{% endif %} class="bg-surface border-primary w-5 h-5">
+                        [ ENABLE_BANNER ]
+                    </label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-primary mb-1">BACKGROUND_COLOR</label>
+                    <input type="color" name="background_color" value="{{ banner.get('background_color', '#000000') }}" class="w-full h-12 bg-surface border border-surface-border cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-xs text-primary mb-1">TEXT_COLOR</label>
+                    <input type="color" name="text_color" value="{{ banner.get('text_color', '#00FF41') }}" class="w-full h-12 bg-surface border border-surface-border cursor-pointer">
+                </div>
+            </div>
+
+            <button type="submit" class="w-full bg-red-500 text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm mt-4">
+                > APPLY_CHANGES
+            </button>
+        </form>
+    </div>
+
+    <!-- SETTINGS PANEL -->
+    <div id="tab-settings" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> GLOBAL_SETTINGS</h3>
+        <form method="POST" action="/admin/update_settings" class="brutalist-border bg-black p-6 space-y-4 max-w-2xl">
+            <div>
+                <label class="block text-xs text-primary mb-1">UPI_ID</label>
+                <input type="text" name="UPI_ID" value="{{ settings.get('UPI_ID', '') }}" class="w-full bg-surface border border-surface-border p-3 text-white focus:border-red-500 font-mono text-sm">
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-primary mb-1">MIN_ADVANCE (₹)</label>
+                    <input type="number" name="MIN_ADVANCE" value="{{ settings.get('MIN_ADVANCE', '10') }}" class="w-full bg-surface border border-surface-border p-3 text-white focus:border-red-500 font-mono text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs text-primary mb-1">MAX_ADVANCE_PERCENT (%)</label>
+                    <input type="number" name="MAX_ADVANCE_PERCENT" value="{{ settings.get('MAX_ADVANCE_PERCENT', '100') }}" class="w-full bg-surface border border-surface-border p-3 text-white focus:border-red-500 font-mono text-sm">
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-red-500 text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm mt-4">
+                > UPDATE_SETTINGS
+            </button>
+        </form>
+    </div>
+
 </section>
 
 <script>
+// Tab Switching Logic
+document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.admin-tab-btn').forEach(b => {
+            b.classList.remove('active', 'bg-red-500', 'text-black', 'border-red-500');
+            b.classList.add('text-white', 'border-surface-border');
+        });
+
+        btn.classList.add('active', 'bg-red-500', 'text-black', 'border-red-500');
+        btn.classList.remove('text-white', 'border-surface-border');
+
+        document.querySelectorAll('.admin-tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+
+        const tabId = btn.getAttribute('data-tab');
+        document.getElementById('tab-' + tabId).classList.remove('hidden');
+    });
+});
+
 async function updateOrder(btn) {
     const container = btn.closest('.admin-form');
     const bookingId = container.getAttribute('data-id');
@@ -113,7 +278,7 @@ async function updateOrder(btn) {
         if (result.status === 'success') {
             if(window.showToast) window.showToast('Record updated.', 'success');
             btn.innerHTML = 'OK';
-            setTimeout(() => { btn.innerHTML = 'SAVE'; btn.disabled = false; }, 2000);
+            setTimeout(() => { btn.innerHTML = 'SAVE'; btn.disabled = false; window.location.reload(); }, 1500);
         } else {
             if(window.showToast) window.showToast('Error updating record.', 'error');
             btn.innerHTML = 'ERR';

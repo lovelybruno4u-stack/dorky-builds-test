@@ -30,7 +30,6 @@ const projectOptionsContainer = document.getElementById('project-options');
 const stepIndicator = document.getElementById('step-indicator');
 const currentStepNum = document.getElementById('current-step-num');
 const progressBar = document.getElementById('progress-bar');
-const requirementsForm = document.getElementById('requirements-form');
 const moduleSelectFallback = document.getElementById('module-select-fallback');
 
 let onboardingState = {
@@ -38,8 +37,16 @@ let onboardingState = {
     projectType: '',
     plan: '',
     basePrice: 0,
-    speed: '',
-    speedPrice: 0
+    discountAmount: 0,
+    couponCode: '',
+    finalPrice: 0,
+    advancePaid: 0,
+    remainingAmount: 0,
+    settings: {
+        UPI_ID: 'bina.patil@axl',
+        MIN_ADVANCE: 10,
+        MAX_ADVANCE_PERCENT: 100
+    }
 };
 
 const moduleProjects = {
@@ -66,9 +73,20 @@ const moduleProjects = {
     ]
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const step1 = document.getElementById('step-1');
     if (!step1) return;
+
+    // Fetch settings
+    try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if(data.status === 'success') {
+            if(data.settings['UPI_ID']) onboardingState.settings.UPI_ID = data.settings['UPI_ID'];
+            if(data.settings['MIN_ADVANCE']) onboardingState.settings.MIN_ADVANCE = parseFloat(data.settings['MIN_ADVANCE']);
+            if(data.settings['MAX_ADVANCE_PERCENT']) onboardingState.settings.MAX_ADVANCE_PERCENT = parseFloat(data.settings['MAX_ADVANCE_PERCENT']);
+        }
+    } catch(e) { console.error("Settings fetch error:", e); }
 
     const urlParams = new URLSearchParams(window.location.search);
     const urlModule = urlParams.get('module');
@@ -88,7 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (moduleSelectFallback) moduleSelectFallback.classList.add('hidden');
         goToStep(1);
     } else if (urlPlan) {
-        // Find price roughly based on plan name
         const planPrices = {
             'MINI': 500, 'STARTER': 999, 'BASIC': 2999, 'STANDARD': 4999,
             'PRO': 9999, 'ADVANCED': 14999, 'ELITE': 29999, 'ENTERPRISE': 50000
@@ -104,8 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
             reqProjectInput.value = "Unspecified (from Pricing)";
             reqProjectInput.removeAttribute('readonly');
         }
-
-        goToStep('speed');
+        goToStep(3);
     } else {
         if (projectOptionsContainer) projectOptionsContainer.classList.add('hidden');
         if (moduleSelectFallback) moduleSelectFallback.classList.remove('hidden');
@@ -113,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function goToStep(stepNum) {
+window.goToStep = function(stepNum) {
     document.querySelectorAll('.step-container').forEach(el => {
         el.classList.add('hidden');
         el.classList.remove('flex');
@@ -122,7 +138,7 @@ function goToStep(stepNum) {
     const targetStep = document.getElementById(`step-${stepNum}`);
     if (targetStep) {
         targetStep.classList.remove('hidden');
-        if (stepNum === 4) {
+        if (stepNum === 5) {
             targetStep.classList.add('flex');
         }
     }
@@ -131,115 +147,204 @@ function goToStep(stepNum) {
         if (stepNum === 1) {
             currentStepNum.innerText = '1';
             stepIndicator.innerText = '> SELECT_PROJECT';
-            progressBar.style.width = '25%';
+            progressBar.style.width = '20%';
         } else if (stepNum === 2) {
             currentStepNum.innerText = '2';
             stepIndicator.innerText = '> ALLOCATE_PLAN';
-            progressBar.style.width = '50%';
-        } else if (stepNum === 'speed') {
-            currentStepNum.innerText = '3';
-            stepIndicator.innerText = '> SET_DELIVERY';
-            progressBar.style.width = '75%';
-            // Update UI base price display
-            const basePriceDisplay = document.getElementById('current-base-price');
-            if (basePriceDisplay) basePriceDisplay.innerText = `₹${onboardingState.basePrice.toLocaleString()}`;
+            progressBar.style.width = '40%';
         } else if (stepNum === 3) {
-            currentStepNum.innerText = '4';
+            currentStepNum.innerText = '3';
             stepIndicator.innerText = '> INPUT_SPECS';
-            progressBar.style.width = '100%';
-
-            // Update total price display
-            const finalTotalDisplay = document.getElementById('final-total-price');
-            if (finalTotalDisplay) {
-                const total = onboardingState.basePrice + onboardingState.speedPrice;
-                finalTotalDisplay.innerText = `₹${total.toLocaleString()}`;
-            }
+            progressBar.style.width = '60%';
+        } else if (stepNum === 4) {
+            currentStepNum.innerText = '4';
+            stepIndicator.innerText = '> CHECKOUT_EXECUTION';
+            progressBar.style.width = '80%';
+            updateCheckoutUI();
         }
     }
-}
+};
 
-function selectProjectType(projectName) {
+window.selectProjectType = function(projectName) {
     onboardingState.projectType = projectName;
     const reqProjectInput = document.getElementById('req-project');
-    if (reqProjectInput) {
-        reqProjectInput.value = projectName;
-    }
+    if (reqProjectInput) reqProjectInput.value = projectName;
     goToStep(2);
-}
+};
 
-function selectPlan(planName, price) {
+window.selectPlan = function(planName, price) {
     onboardingState.plan = planName;
     onboardingState.basePrice = price;
     const reqPlanInput = document.getElementById('req-plan');
-    if (reqPlanInput) {
-        reqPlanInput.value = planName;
-    }
-    goToStep('speed');
-}
-
-function selectSpeed(speedName, extraPrice) {
-    onboardingState.speed = speedName;
-    onboardingState.speedPrice = extraPrice;
-    const reqSpeedInput = document.getElementById('req-speed');
-    if (reqSpeedInput) {
-        reqSpeedInput.value = speedName;
-    }
+    if (reqPlanInput) reqPlanInput.value = planName;
     goToStep(3);
-}
+};
 
-if (requirementsForm) {
-    requirementsForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+window.applyCoupon = async function() {
+    const couponInput = document.getElementById('coupon-input');
+    const msgEl = document.getElementById('coupon-msg');
+    const code = couponInput.value.trim();
+    if(!code) return;
 
-        const btn = document.getElementById('submit-requirements-btn');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="relative z-10">> TRANSMITTING TO SERVER...</span>';
-        btn.classList.add('animate-pulse');
+    msgEl.classList.remove('hidden', 'text-red-500', 'text-primary');
+    msgEl.classList.add('text-on-surface-variant');
+    msgEl.innerText = '> VERIFYING_CODE...';
 
-        const formData = new FormData();
-        formData.append('name', document.getElementById('req-name').value);
-        formData.append('email', document.getElementById('req-email').value);
-        formData.append('phone', document.getElementById('req-phone').value);
+    try {
+        const res = await fetch('/api/validate_coupon', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ code: code, order_value: onboardingState.basePrice })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            const coupon = data.coupon;
+            onboardingState.couponCode = coupon.code;
 
-        const reqProjInput = document.getElementById('req-project');
-        formData.append('projectType', reqProjInput ? reqProjInput.value : onboardingState.projectType);
-
-        const reqPlanInput = document.getElementById('req-plan');
-        formData.append('plan', reqPlanInput ? reqPlanInput.value : onboardingState.plan);
-
-        const reqSpeedInput = document.getElementById('req-speed');
-        formData.append('deliverySpeed', reqSpeedInput ? reqSpeedInput.value : onboardingState.speed);
-
-        formData.append('budget', document.getElementById('req-budget').value);
-        formData.append('timeline', document.getElementById('req-timeline').value);
-        formData.append('features', document.getElementById('req-features').value);
-
-        try {
-            console.log("📦 [FRONTEND] Transmitting payload to /submit-requirements...");
-            const response = await fetch('/submit-requirements', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
-
-            if (result.status === 'success') {
-                const bookingDisplay = document.getElementById('booking-id-display');
-                if (bookingDisplay) {
-                    bookingDisplay.innerText = result.booking_id;
-                }
-                goToStep(4);
+            if(coupon.type === 'percent') {
+                onboardingState.discountAmount = (onboardingState.basePrice * coupon.value) / 100;
+            } else {
+                onboardingState.discountAmount = coupon.value;
             }
-        } catch (error) {
-            console.error("Transmission error:", error);
-            showToast("Error communicating with server.", "error");
-        } finally {
-            btn.innerHTML = originalText;
-            btn.classList.remove('animate-pulse');
+
+            // Ensure discount doesn't exceed base price
+            if(onboardingState.discountAmount > onboardingState.basePrice) {
+                onboardingState.discountAmount = onboardingState.basePrice;
+            }
+
+            msgEl.innerText = `> CODE_ACCEPTED: -₹${onboardingState.discountAmount.toFixed(0)}`;
+            msgEl.classList.replace('text-on-surface-variant', 'text-primary');
+            updateCheckoutUI();
+        } else {
+            msgEl.innerText = `> ERR: ${data.message}`;
+            msgEl.classList.replace('text-on-surface-variant', 'text-red-500');
+            onboardingState.couponCode = '';
+            onboardingState.discountAmount = 0;
+            updateCheckoutUI();
         }
-    });
+    } catch(e) {
+        msgEl.innerText = '> ERR: VERIFICATION_FAILED';
+        msgEl.classList.replace('text-on-surface-variant', 'text-red-500');
+        onboardingState.couponCode = '';
+        onboardingState.discountAmount = 0;
+        updateCheckoutUI();
+    }
+};
+
+function updateCheckoutUI() {
+    onboardingState.finalPrice = onboardingState.basePrice - onboardingState.discountAmount;
+    if(onboardingState.finalPrice < 0) onboardingState.finalPrice = 0;
+
+    document.getElementById('ui-base-price').innerText = `₹${onboardingState.basePrice}`;
+    document.getElementById('ui-final-price').innerText = `₹${onboardingState.finalPrice}`;
+
+    const discRow = document.getElementById('ui-discount-row');
+    if (onboardingState.discountAmount > 0) {
+        discRow.classList.remove('hidden');
+        document.getElementById('ui-discount-amount').innerText = `-₹${onboardingState.discountAmount}`;
+    } else {
+        discRow.classList.add('hidden');
+    }
+
+    // Slider Limits
+    const slider = document.getElementById('advance-slider');
+    const minAdvance = Math.min(onboardingState.settings.MIN_ADVANCE, onboardingState.finalPrice);
+    const maxAdvance = (onboardingState.finalPrice * onboardingState.settings.MAX_ADVANCE_PERCENT) / 100;
+
+    slider.min = minAdvance;
+    slider.max = maxAdvance;
+    slider.value = minAdvance; // Default to min
+
+    document.getElementById('ui-min-advance').innerText = `MIN: ₹${minAdvance}`;
+    document.getElementById('ui-max-advance').innerText = `MAX: ₹${maxAdvance}`;
+
+    // Attach slider listener if not already
+    slider.oninput = function() {
+        onboardingState.advancePaid = parseInt(this.value);
+        updatePaymentDetails();
+    };
+
+    // Trigger update explicitly
+    slider.dispatchEvent(new Event('input'));
 }
 
-function copyBookingId() {
+function updatePaymentDetails() {
+    onboardingState.remainingAmount = onboardingState.finalPrice - onboardingState.advancePaid;
+    document.getElementById('ui-advance-display').innerText = `₹${onboardingState.advancePaid}`;
+    document.getElementById('ui-remaining-amount').innerText = `₹${onboardingState.remainingAmount}`;
+    document.getElementById('ui-paying-amount').innerText = `₹${onboardingState.advancePaid}`;
+
+    const upiId = onboardingState.settings.UPI_ID;
+    document.getElementById('ui-upi-id').innerText = upiId;
+
+    const upiLink = `upi://pay?pa=${upiId}&pn=DorkyBuilds&am=${onboardingState.advancePaid}&cu=INR`;
+    document.getElementById('upi-pay-btn').href = upiLink;
+
+    // Generate QR using free API
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(upiLink)}&bgcolor=121212&color=00FF41`;
+    document.getElementById('upi-qr').src = qrUrl;
+}
+
+window.submitFinalOrder = async function() {
+    const btn = document.getElementById('final-submit-btn');
+
+    const name = document.getElementById('req-name').value.trim();
+    const email = document.getElementById('req-email').value.trim();
+    const phone = document.getElementById('req-phone').value.trim();
+    const features = document.getElementById('req-features').value.trim();
+    const upiRef = document.getElementById('req-upi-ref').value.trim();
+    const screenshotInput = document.getElementById('req-screenshot');
+
+    if(!name || !email || !features || !upiRef || !screenshotInput.files[0]) {
+        if(window.showToast) window.showToast("Missing required checkout fields or screenshot.", "error");
+        return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="relative z-10 animate-pulse">> UPLOADING & TRANSMITTING...</span>';
+    btn.disabled = true;
+
+    const formData = new FormData();
+    formData.append('name', name);
+    formData.append('email', email);
+    formData.append('phone', phone);
+    formData.append('projectType', document.getElementById('req-project').value || onboardingState.projectType);
+    formData.append('plan', document.getElementById('req-plan').value || onboardingState.plan);
+    formData.append('budget', document.getElementById('req-budget').value);
+    formData.append('timeline', document.getElementById('req-timeline').value);
+    formData.append('features', features);
+    formData.append('total_price', onboardingState.basePrice);
+    formData.append('advance_paid', onboardingState.advancePaid);
+    formData.append('remaining_amount', onboardingState.remainingAmount);
+    formData.append('upi_ref_id', upiRef);
+    formData.append('coupon_applied', onboardingState.couponCode);
+    formData.append('discount_amount', onboardingState.discountAmount);
+    formData.append('final_price', onboardingState.finalPrice);
+    formData.append('screenshot', screenshotInput.files[0]);
+
+    try {
+        const response = await fetch('/submit-requirements', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            document.getElementById('booking-id-display').innerText = result.booking_id;
+            goToStep(5);
+        } else {
+            if(window.showToast) window.showToast(result.message || "Checkout error", "error");
+        }
+    } catch (error) {
+        console.error(error);
+        if(window.showToast) window.showToast("Connection failed.", "error");
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+};
+
+window.copyBookingId = function() {
     const bookingId = document.getElementById('booking-id-display').innerText;
     navigator.clipboard.writeText(bookingId).then(() => {
         const statusEl = document.getElementById('copy-status');
@@ -250,7 +355,7 @@ function copyBookingId() {
             }, 3000);
         }
     });
-}
+};
 
 // --- SCROLL PROGRESS & REVEAL ANIMATIONS (ABOUT PAGE) ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -363,4 +468,39 @@ document.addEventListener("DOMContentLoaded", () => {
         currentUser = JSON.parse(storedUser);
     }
     updateAuthUI();
+});
+
+
+
+// --- DYNAMIC BANNER ---
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const res = await fetch('/api/banner');
+        const data = await res.json();
+
+        if (data.status === 'success' && data.banner) {
+            const banner = document.getElementById('dynamic-banner');
+            const nav = document.getElementById('main-nav');
+
+            if (banner) {
+                banner.innerText = data.banner.banner_text;
+                banner.style.backgroundColor = data.banner.background_color || '#000000';
+                banner.style.color = data.banner.text_color || '#00FF41';
+                banner.style.display = 'block';
+
+                // Adjust nav position
+                const bannerHeight = banner.offsetHeight;
+                if(nav) nav.style.top = bannerHeight + 'px';
+
+                // Auto hide
+                const duration = parseInt(data.banner.duration_seconds || 30);
+                setTimeout(() => {
+                    banner.style.display = 'none';
+                    if(nav) nav.style.top = '0px';
+                }, duration * 1000);
+            }
+        }
+    } catch(e) {
+        console.error("Banner fetch failed:", e);
+    }
 });

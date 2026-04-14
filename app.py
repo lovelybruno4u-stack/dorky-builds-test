@@ -10,18 +10,28 @@ import gspread
 import time
 from google.oauth2.service_account import Credentials
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+
+UPLOAD_FOLDER = 'static/uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dorky_builds_super_secret_dev_key")
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
 
 DEBUG_MODE = os.environ.get("DEBUG", "true").lower() == "true"
 
 SHEET_CONNECTED = False
 orders_sheet = None
 users_sheet = None
+coupons_sheet = None
+banner_sheet = None
+settings_sheet = None
+logs_sheet = None
 
 def init_google_sheets():
-    global orders_sheet, users_sheet, SHEET_CONNECTED
+    global orders_sheet, users_sheet, coupons_sheet, banner_sheet, settings_sheet, logs_sheet, SHEET_CONNECTED
 
     creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "").strip()
     sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
@@ -46,6 +56,7 @@ def init_google_sheets():
 
     # 2. GOOGLE AUTH FIX
     try:
+        import json
         creds_dict = json.loads(creds_json_str)
     except json.JSONDecodeError as e:
         print(f"❌ [FATAL] GOOGLE_CREDS_JSON is not valid JSON: {e}")
@@ -67,6 +78,7 @@ def init_google_sheets():
         return
 
     # 3. CONNECTION FLOW IMPROVEMENT (RETRY LOGIC & 404/403 HANDLING)
+    import time
     max_retries = 3
     spreadsheet = None
 
@@ -96,57 +108,77 @@ def init_google_sheets():
         SHEET_CONNECTED = False
         return
 
-    # 4. WORKSHEET ACCESS & HEADERS
-    try:
+    # Helper function to get or create worksheets safely
+    def get_or_create_worksheet(title, rows="1000", cols="20"):
         try:
-            orders_sheet = spreadsheet.worksheet("Orders")
-            print("✅ [WORKSHEET] Found existing 'Orders' worksheet.")
+            return spreadsheet.worksheet(title)
         except gspread.exceptions.WorksheetNotFound:
-            print("⏳ [WORKSHEET] 'Orders' worksheet not found. Converting default sheet1...")
-            orders_sheet = spreadsheet.sheet1
-            orders_sheet.update_title("Orders")
-            print("✅ [WORKSHEET] 'Orders' worksheet configured.")
+            print(f"⏳ [WORKSHEET] '{title}' not found. Creating...")
+            if title == "Orders" and len(spreadsheet.worksheets()) == 1 and spreadsheet.sheet1.title != "Orders":
+                ws = spreadsheet.sheet1
+                ws.update_title("Orders")
+                return ws
+            return spreadsheet.add_worksheet(title=title, rows=rows, cols=cols)
 
-        try:
-            users_sheet = spreadsheet.worksheet("Users")
-            print("✅ [WORKSHEET] Found existing 'Users' worksheet.")
-        except gspread.exceptions.WorksheetNotFound:
-            print("⏳ [WORKSHEET] 'Users' worksheet not found. Creating new worksheet...")
-            users_sheet = spreadsheet.add_worksheet(title="Users", rows="1000", cols="10")
-            print("✅ [WORKSHEET] 'Users' worksheet configured.")
+    try:
+        orders_sheet = get_or_create_worksheet("Orders")
+        users_sheet = get_or_create_worksheet("Users")
+        coupons_sheet = get_or_create_worksheet("Coupons")
+        banner_sheet = get_or_create_worksheet("Banner_Control")
+        settings_sheet = get_or_create_worksheet("Settings")
+        logs_sheet = get_or_create_worksheet("Admin_Logs")
     except Exception as e:
         print(f"❌ [FATAL] Error configuring worksheets: {e}")
         SHEET_CONNECTED = False
         return
 
-    # 5. AUTO-CREATE HEADERS
+    # 5. AUTO-CREATE HEADERS & DEFAULTS
     SHEET_CONNECTED = True
 
-    order_headers = [
-        "booking_id", "user_id", "name", "email", "phone",
-        "project_type", "plan", "delivery_speed", "features",
-        "budget", "timeline",
-        "status", "preview_link",
-        "payment_status", "approved", "created_at", "last_updated"
-    ]
-    try:
-        existing_orders = orders_sheet.row_values(1)
-        if existing_orders != order_headers:
-            print("⚠️ [SHEETS] Orders headers do not match. Fixing...")
-            orders_sheet.insert_row(order_headers, 1)
-    except Exception as e:
-        print("⚠️ [SHEETS] Orders sheet empty. Initializing headers...")
-        orders_sheet.insert_row(order_headers, 1)
+    def ensure_headers(ws, headers, default_data=None):
+        try:
+            existing = ws.row_values(1)
+            if existing != headers:
+                print(f"⚠️ [SHEETS] {ws.title} headers do not match. Fixing...")
+                ws.insert_row(headers, 1)
+                if default_data and len(ws.get_all_values()) <= 1:
+                    for row in default_data:
+                        ws.append_row(row)
+        except Exception as e:
+            print(f"⚠️ [SHEETS] {ws.title} empty. Initializing headers...")
+            ws.insert_row(headers, 1)
+            if default_data:
+                for row in default_data:
+                    ws.append_row(row)
 
-    user_headers = ["uid", "name", "email", "password_hash", "created_at"]
-    try:
-        existing_users = users_sheet.row_values(1)
-        if existing_users != user_headers:
-            print("⚠️ [SHEETS] Users headers do not match. Fixing...")
-            users_sheet.insert_row(user_headers, 1)
-    except Exception as e:
-        print("⚠️ [SHEETS] Users sheet empty. Initializing headers...")
-        users_sheet.insert_row(user_headers, 1)
+    ensure_headers(orders_sheet, [
+        "booking_id", "user_id", "name", "email", "phone",
+        "project_type", "total_price", "advance_paid", "remaining_amount",
+        "payment_status", "upi_ref_id", "screenshot_url",
+        "coupon_applied", "discount_amount", "final_price", "status", "preview_link", "approved", "timestamp", "last_updated"
+    ])
+
+    ensure_headers(users_sheet, ["uid", "name", "email", "password_hash", "created_at"])
+
+    ensure_headers(coupons_sheet, [
+        "coupon_code", "discount_type", "discount_value",
+        "min_order_value", "expiry_date", "active"
+    ], [["FIRST100", "flat", "100", "0", "2026-12-31", "TRUE"]])
+
+    ensure_headers(banner_sheet, [
+        "banner_text", "active", "duration_seconds", "background_color", "text_color"
+    ], [["🔥 Use code FIRST100 and get ₹100 OFF!", "TRUE", "30", "#000000", "#00FF41"]])
+
+    ensure_headers(settings_sheet, [
+        "setting_name", "value"
+    ], [
+        ["UPI_ID", "bina.patil@axl"],
+        ["MIN_ADVANCE", "10"],
+        ["MAX_ADVANCE_PERCENT", "100"],
+        ["SITE_MODE", "LIVE"]
+    ])
+
+    ensure_headers(logs_sheet, ["action", "details", "timestamp"])
 
     print("🚀 [READY] Google Sheets backend is fully configured and online.")
 
@@ -159,6 +191,15 @@ except Exception as e:
 
 def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+def log_admin_action(action, details):
+    if SHEET_CONNECTED and logs_sheet:
+        try:
+            timestamp = datetime.utcnow().isoformat() + "Z"
+            logs_sheet.append_row([action, details, timestamp])
+        except Exception as e:
+            print(f"❌ [LOGS] Failed to write to Admin_Logs: {e}")
+
 
 @app.before_request
 def require_login():
@@ -325,16 +366,32 @@ def submit_requirements():
     data = request.form
 
     # Input validation
-    required_fields = ['name', 'email', 'projectType', 'plan']
+    required_fields = ['name', 'email', 'projectType', 'plan', 'upi_ref_id']
     for field in required_fields:
         if not data.get(field):
             print(f"❌ [VALIDATION] Missing required field: {field}")
             return jsonify({"status": "error", "message": f"Missing required field: {field}"}), 400
 
+    # File upload handling
+    screenshot_url = ""
+    if 'screenshot' in request.files:
+        file = request.files['screenshot']
+        if file.filename != '':
+            filename = secure_filename(f"{session.get('user_id')}_{int(time.time())}_{file.filename}")
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            screenshot_url = f"/static/uploads/{filename}"
+            print(f"✅ [UPLOAD] Saved screenshot: {screenshot_url}")
+        else:
+            return jsonify({"status": "error", "message": "Screenshot file is missing"}), 400
+    else:
+        return jsonify({"status": "error", "message": "Screenshot upload is required"}), 400
+
     user_id = session.get('user_id')
     booking_id = generate_booking_id()
     current_time = datetime.utcnow().isoformat() + "Z"
 
+    # New Columns matching schema
     row_data = [
         booking_id,
         user_id,
@@ -342,16 +399,19 @@ def submit_requirements():
         data.get('email', ''),
         data.get('phone', ''),
         data.get('projectType', ''),
-        data.get('plan', ''),
-        data.get('deliverySpeed', ''),
-        data.get('features', ''),
-        data.get('budget', ''),
-        data.get('timeline', ''),
+        data.get('total_price', '0'),
+        data.get('advance_paid', '0'),
+        data.get('remaining_amount', '0'),
+        "Pending",      # payment_status
+        data.get('upi_ref_id', ''),
+        screenshot_url,
+        data.get('coupon_applied', ''),
+        data.get('discount_amount', '0'),
+        data.get('final_price', '0'),
         "REQUESTED",    # status
         "",             # preview_link
-        "PENDING",      # payment_status
         "NO",           # approved
-        current_time,   # created_at
+        current_time,   # timestamp/created_at
         current_time    # last_updated
     ]
 
@@ -370,6 +430,7 @@ def submit_requirements():
 
             orders_sheet.append_row(row_data)
             print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to Orders sheet.")
+            log_admin_action("ORDER_CREATED", f"User {user_id} created order {booking_id}")
         except Exception as e:
             print(f"❌ [SHEETS] Error writing booking {booking_id} to Google Sheets: {e}")
             if DEBUG_MODE:
@@ -399,7 +460,85 @@ def get_google_sheet_records():
     return []
 
 @app.route('/api/track/<booking_id>', methods=['GET'])
+
+@app.route('/api/banner', methods=['GET'])
+def api_banner():
+    if not SHEET_CONNECTED or not banner_sheet:
+        return jsonify({"status": "error"}), 500
+    try:
+        records = banner_sheet.get_all_records()
+        if records:
+            # Assuming first row has the active banner
+            banner = records[0]
+            if str(banner.get('active', '')).upper() == 'TRUE':
+                return jsonify({"status": "success", "banner": banner})
+    except Exception as e:
+        print(f"❌ [BANNER] Error: {e}")
+    return jsonify({"status": "success", "banner": None})
+
+@app.route('/api/settings', methods=['GET'])
+def api_settings():
+    if not SHEET_CONNECTED or not settings_sheet:
+        return jsonify({"status": "error"}), 500
+    try:
+        records = settings_sheet.get_all_records()
+        settings_dict = {str(r.get('setting_name')).strip(): str(r.get('value')).strip() for r in records if r.get('setting_name')}
+        return jsonify({"status": "success", "settings": settings_dict})
+    except Exception as e:
+        print(f"❌ [SETTINGS] Error: {e}")
+    return jsonify({"status": "error"}), 500
+
+@app.route('/api/validate_coupon', methods=['POST'])
+def validate_coupon():
+    data = request.json or {}
+    code = data.get('code', '').strip().upper()
+    order_value = float(data.get('order_value', 0))
+
+    if not code:
+        return jsonify({"status": "error", "message": "No code provided"}), 400
+
+    if not SHEET_CONNECTED or not coupons_sheet:
+        return jsonify({"status": "error", "message": "Database disconnected"}), 500
+
+    try:
+        records = coupons_sheet.get_all_records()
+        for r in records:
+            if str(r.get('coupon_code', '')).strip().upper() == code:
+                # Check if active
+                if str(r.get('active', '')).upper() != 'TRUE':
+                    return jsonify({"status": "error", "message": "Coupon is inactive"}), 400
+
+                # Check expiry
+                expiry_str = r.get('expiry_date', '').strip()
+                if expiry_str:
+                    try:
+                        expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+                        if datetime.now().date() > expiry_date:
+                            return jsonify({"status": "error", "message": "Coupon has expired"}), 400
+                    except Exception:
+                        pass # Ignore malformed dates
+
+                # Check min order
+                min_order = float(r.get('min_order_value', 0) or 0)
+                if order_value < min_order:
+                    return jsonify({"status": "error", "message": f"Minimum order value is ₹{min_order}"}), 400
+
+                # Success
+                return jsonify({
+                    "status": "success",
+                    "coupon": {
+                        "code": code,
+                        "type": r.get('discount_type', 'flat').lower(),
+                        "value": float(r.get('discount_value', 0))
+                    }
+                })
+        return jsonify({"status": "error", "message": "Invalid coupon code"}), 404
+    except Exception as e:
+        print(f"❌ [COUPON] Error: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
+
 def api_track(booking_id):
+    booking_id = booking_id.strip().upper()
     if not booking_id:
         return jsonify({"status": "error", "message": "Booking ID required"}), 400
 
@@ -409,12 +548,13 @@ def api_track(booking_id):
     order = None
     records = get_google_sheet_records()
     for r in records:
-        if r.get('booking_id') == booking_id:
+        # Normalize stored ID just in case
+        stored_id = str(r.get('booking_id', '')).strip().upper()
+        if stored_id == booking_id:
             order = r
             break
 
     if order:
-        # Sanitize sensitive fields if necessary
         return jsonify({"status": "success", "order": order})
     else:
         return jsonify({"status": "error", "message": "INVALID BOOKING ID"}), 404
@@ -513,11 +653,84 @@ def admin_dashboard():
         return redirect(url_for('admin_login'))
 
     orders = []
-    if SHEET_CONNECTED:
-        records = get_google_sheet_records()
-        orders = list(reversed(records))
+    coupons = []
+    banner = {}
+    settings = {}
 
-    return render_template('admin_dashboard.html', orders=orders)
+    if SHEET_CONNECTED:
+        try:
+            records = orders_sheet.get_all_records()
+            orders = list(reversed(records))
+
+            coupons = coupons_sheet.get_all_records()
+
+            banners = banner_sheet.get_all_records()
+            if banners: banner = banners[0]
+
+            sett = settings_sheet.get_all_records()
+            settings = {str(r.get('setting_name')).strip(): str(r.get('value')).strip() for r in sett if r.get('setting_name')}
+        except Exception as e:
+            print(f"❌ [ADMIN] Dashboard data fetch error: {e}")
+
+    return render_template('admin_dashboard.html', orders=orders, coupons=coupons, banner=banner, settings=settings)
+
+
+@app.route('/admin/update_banner', methods=['POST'])
+def admin_update_banner():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error"}), 403
+    data = request.form
+    try:
+        # Assuming banner is always row 2
+        banner_sheet.update_cell(2, 1, data.get('banner_text', ''))
+        banner_sheet.update_cell(2, 2, 'TRUE' if data.get('active') else 'FALSE')
+        banner_sheet.update_cell(2, 3, data.get('duration_seconds', '30'))
+        banner_sheet.update_cell(2, 4, data.get('background_color', '#000000'))
+        banner_sheet.update_cell(2, 5, data.get('text_color', '#00FF41'))
+        log_admin_action("BANNER_UPDATE", "Admin updated banner settings")
+        return redirect(url_for('admin_dashboard'))
+    except Exception as e:
+        print(f"❌ [ADMIN] Banner update failed: {e}")
+        return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/update_settings', methods=['POST'])
+def admin_update_settings():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error"}), 403
+    data = request.form
+    try:
+        # Need to iterate and update or just clear and rewrite settings
+        # Faster: just update matching keys
+        records = settings_sheet.get_all_records()
+        for idx, r in enumerate(records):
+            key = r.get('setting_name')
+            if key in data:
+                settings_sheet.update_cell(idx + 2, 2, data[key])
+        log_admin_action("SETTINGS_UPDATE", "Admin updated global settings")
+        return redirect(url_for('admin_dashboard'))
+    except Exception as e:
+        print(f"❌ [ADMIN] Settings update failed: {e}")
+        return redirect(url_for('admin_dashboard'))
+
+@app.route('/admin/add_coupon', methods=['POST'])
+def admin_add_coupon():
+    if not session.get('is_admin'):
+        return jsonify({"status": "error"}), 403
+    data = request.form
+    try:
+        coupons_sheet.append_row([
+            data.get('coupon_code', '').upper().strip(),
+            data.get('discount_type', 'flat'),
+            data.get('discount_value', '0'),
+            data.get('min_order_value', '0'),
+            data.get('expiry_date', ''),
+            'TRUE' if data.get('active') else 'FALSE'
+        ])
+        log_admin_action("COUPON_ADDED", f"Admin added coupon {data.get('coupon_code')}")
+        return redirect(url_for('admin_dashboard'))
+    except Exception as e:
+        print(f"❌ [ADMIN] Coupon add failed: {e}")
+        return redirect(url_for('admin_dashboard'))
 
 @app.route('/api/admin/update_order', methods=['POST'])
 def api_admin_update_order():
