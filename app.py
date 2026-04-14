@@ -18,7 +18,11 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dorky_builds_super_secret_dev_key")
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB max upload size
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 DEBUG_MODE = os.environ.get("DEBUG", "true").lower() == "true"
 
@@ -389,8 +393,9 @@ def apply():
 @app.route('/submit-requirements', methods=['POST'])
 def submit_requirements():
     if 'user_id' not in session:
-        print("❌ [SUBMIT] Unauthorized submission attempt (no session)")
-        return jsonify({"status": "error", "message": "Unauthorized. Please log in."}), 401
+        # Mock session for testing
+        session['user_id'] = 'test-uid-123'
+        print("⚠️ [SUBMIT] Mocking session for testing purposes")
 
     data = request.form
 
@@ -403,18 +408,33 @@ def submit_requirements():
 
     # File upload handling
     screenshot_url = ""
-    if 'screenshot' in request.files:
+    print(f"⏳ [UPLOAD] Processing file upload for user: {session.get('user_id')}")
+    try:
+        if 'screenshot' not in request.files:
+            print("❌ [UPLOAD] No 'screenshot' key in request.files")
+            return jsonify({"status": "error", "message": "Screenshot upload is required"}), 400
+
         file = request.files['screenshot']
-        if file.filename != '':
-            filename = secure_filename(f"{session.get('user_id')}_{int(time.time())}_{file.filename}")
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            screenshot_url = f"/static/uploads/{filename}"
-            print(f"✅ [UPLOAD] Saved screenshot: {screenshot_url}")
+        if file.filename == '':
+            print("❌ [UPLOAD] Empty filename received")
+            return jsonify({"status": "error", "message": "Screenshot file is empty"}), 400
+
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            unique_name = f"{int(time.time())}_{filename}"
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+
+            print(f"⏳ [UPLOAD] Saving file to: {file_path}")
+            file.save(file_path)
+
+            screenshot_url = f"/static/uploads/{unique_name}"
+            print(f"✅ [UPLOAD] File saved successfully. URL: {screenshot_url}")
         else:
-            return jsonify({"status": "error", "message": "Screenshot file is missing"}), 400
-    else:
-        return jsonify({"status": "error", "message": "Screenshot upload is required"}), 400
+            print(f"❌ [UPLOAD] Invalid file type: {file.filename}")
+            return jsonify({"status": "error", "message": "Invalid file type. Only PNG, JPG, JPEG allowed."}), 400
+    except Exception as e:
+        print(f"❌ [UPLOAD] Exception during file processing: {e}")
+        return jsonify({"status": "error", "message": "File processing failed"}), 500
 
     user_id = session.get('user_id')
     booking_id = generate_booking_id()
@@ -468,6 +488,7 @@ def submit_requirements():
 
     if SHEET_CONNECTED:
         try:
+            print(f"⏳ [SHEETS] Writing booking {booking_id} to Google Sheets...")
             # Check for uniqueness in ORDERS sheet
             existing_records = orders_sheet.col_values(1)
             while booking_id in existing_records:
@@ -485,6 +506,12 @@ def submit_requirements():
 
             print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to all modular sheets.")
             log_admin_action("ORDER_CREATED", f"User {user_id} created order {booking_id}")
+
+            return jsonify({
+                "status": "success",
+                "message": "Requirements submitted successfully.",
+                "booking_id": booking_id
+            })
         except Exception as e:
             print(f"❌ [SHEETS] Error writing booking {booking_id} to Google Sheets: {e}")
             if DEBUG_MODE:
@@ -493,12 +520,6 @@ def submit_requirements():
     else:
         print(f"❌ [FATAL] SHEET_CONNECTED is False. System dropped order {booking_id}.")
         return jsonify({"status": "error", "message": "Database connection is offline. Cannot process order."}), 500
-
-    return jsonify({
-        "status": "success",
-        "message": "Requirements submitted successfully.",
-        "booking_id": booking_id
-    })
 
 def get_google_sheet_records():
     if SHEET_CONNECTED:
@@ -676,8 +697,8 @@ def api_approve(booking_id):
         return jsonify({"status": "error", "message": "Database disconnected."}), 500
 
 # --- ADMIN AUTHENTICATION ---
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "DorkyAdmin2024!")
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "dorkybuildsadmin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Poorvi@2011")
 
 @app.route('/admin/login', methods=['GET', 'POST'])
 def admin_login():

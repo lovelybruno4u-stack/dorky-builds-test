@@ -300,6 +300,21 @@ window.submitFinalOrder = async function() {
         return;
     }
 
+    // File validation
+    const file = screenshotInput.files[0];
+    const allowedExtensions = ['png', 'jpg', 'jpeg'];
+    const extension = file.name.split('.').pop().toLowerCase();
+
+    if (!allowedExtensions.includes(extension)) {
+        if(window.showToast) window.showToast("Invalid file type. Only PNG, JPG, JPEG allowed.", "error");
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        if(window.showToast) window.showToast("File is too large. Max size is 5MB.", "error");
+        return;
+    }
+
     const originalText = btn.innerHTML;
     btn.innerHTML = '<span class="relative z-10 animate-pulse">> UPLOADING & TRANSMITTING...</span>';
     btn.disabled = true;
@@ -320,9 +335,10 @@ window.submitFinalOrder = async function() {
     formData.append('coupon_applied', onboardingState.couponCode);
     formData.append('discount_amount', onboardingState.discountAmount);
     formData.append('final_price', onboardingState.finalPrice);
-    formData.append('screenshot', screenshotInput.files[0]);
+    formData.append('screenshot', file);
 
     try {
+        console.log("📦 [FRONTEND] Transmitting payload and file to /submit-requirements...");
         const response = await fetch('/submit-requirements', {
             method: 'POST',
             body: formData
@@ -330,15 +346,17 @@ window.submitFinalOrder = async function() {
         const result = await response.json();
 
         if (result.status === 'success') {
+            if(window.showToast) window.showToast("Order submitted successfully.", "success");
             document.getElementById('booking-id-display').innerText = result.booking_id;
             goToStep(5);
         } else {
-            if(window.showToast) window.showToast(result.message || "Checkout error", "error");
+            if(window.showToast) window.showToast(result.message || "Upload or Database Error", "error");
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
     } catch (error) {
-        console.error(error);
-        if(window.showToast) window.showToast("Connection failed.", "error");
-    } finally {
+        console.error("❌ [FRONTEND] Connection or parsing error:", error);
+        if(window.showToast) window.showToast("Connection failed. Check network.", "error");
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
