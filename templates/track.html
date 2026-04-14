@@ -233,44 +233,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Global approve function for tracking page
+        // Global approve function for tracking page
     window.approveTrackProject = async function(bookingId, btnElement) {
-        // We require login to approve
-        const storedUser = localStorage.getItem("dorkyUser");
-        if (!storedUser) {
-            showToast("Login required to approve projects.", "error");
-            // Prompt login
-            if(window.signInWithGoogle) window.signInWithGoogle();
-            return;
-        }
-
         btnElement.disabled = true;
         const originalText = btnElement.innerHTML;
         btnElement.innerHTML = '> PROCESSING...';
 
         try {
-            const user = JSON.parse(storedUser);
             const response = await fetch(`/api/approve/${bookingId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email: user.email })
+                body: JSON.stringify({}) // Auth handled by session cookie
             });
 
             const result = await response.json();
             if (result.status === 'success') {
-                showToast("Approved successfully.", "success");
+                if(window.showToast) window.showToast("Approved successfully.", "success");
                 setTimeout(() => {
-                    // Re-trigger the form submission to update UI
                     document.getElementById('track-form').dispatchEvent(new Event('submit'));
                 }, 1000);
             } else {
-                showToast(result.message || "Failed to approve project.", "error");
+                if(window.showToast) window.showToast(result.message || "Failed to approve project.", "error");
                 btnElement.disabled = false;
                 btnElement.innerHTML = originalText;
+
+                // If unauthorized, redirect to login
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                }
             }
         } catch (err) {
+            console.error(err);
+            if(window.showToast) window.showToast("Error processing approval.", "error");
+            btnElement.disabled = false;
+            btnElement.innerHTML = originalText;
+        }
+    } catch (err) {
             console.error(err);
             showToast("Error processing approval.", "error");
             btnElement.disabled = false;

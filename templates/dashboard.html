@@ -8,31 +8,15 @@
             <h2 class="text-3xl font-bold text-white mb-2">> DASHBOARD.exe</h2>
             <p class="text-on-surface-variant text-lg">Manage your project allocations.</p>
         </div>
-        <button onclick="signOut()" class="text-primary hover:text-white transition-colors border-2 border-primary hover:border-white px-4 py-2 font-bold uppercase tracking-widest text-xs hidden md:block">
-            [ SIGN_OUT ]
-        </button>
-    </div>
-
-    <!-- Not Logged In State -->
-    <div id="unauth-state" class="w-full flex-grow flex flex-col items-center justify-center p-6 text-center">
-        <span class="material-symbols-outlined text-6xl text-on-surface-variant mb-4">lock</span>
-        <h3 class="text-2xl font-bold text-white mb-2">ACCESS DENIED</h3>
-        <p class="text-on-surface-variant mb-8 max-w-md">You must initiate a secure connection to view active project parameters.</p>
-        <button onclick="signInWithGoogle()" class="bg-primary text-black font-bold py-4 px-8 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group">
-            <span class="relative z-10">> INITIATE_LOGIN</span>
-        </button>
     </div>
 
     <!-- Logged In State -->
-    <div id="auth-state" class="w-full hidden flex-col">
+    <div class="w-full flex flex-col">
         <div class="brutalist-border border-l-4 border-l-primary bg-black p-6 mb-12 flex justify-between items-center flex-wrap gap-4">
             <div>
                 <span class="text-on-surface-variant uppercase text-xs">AUTHORIZED_USER:</span>
-                <span id="dash-user-email" class="text-primary font-mono ml-2">user@example.com</span>
+                <span class="text-primary font-mono ml-2">{{ session.get('email') }}</span>
             </div>
-            <button onclick="signOut()" class="text-primary hover:text-white transition-colors uppercase tracking-widest text-xs md:hidden">
-                [ SIGN_OUT ]
-            </button>
         </div>
 
         <div class="flex justify-between items-center mb-6">
@@ -65,32 +49,13 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    function loadDashboardData() {
-        const storedUser = localStorage.getItem("dorkyUser");
-        if (storedUser) {
-            const user = JSON.parse(storedUser);
-
-            document.getElementById('unauth-state').classList.add('hidden');
-            document.getElementById('auth-state').classList.remove('hidden');
-            document.getElementById('auth-state').classList.add('flex');
-            document.getElementById('dash-user-email').innerText = user.email;
-
-            fetchUserOrders(user.email);
-        } else {
-            document.getElementById('auth-state').classList.add('hidden');
-            document.getElementById('auth-state').classList.remove('flex');
-            document.getElementById('unauth-state').classList.remove('hidden');
-            document.getElementById('unauth-state').classList.add('flex');
-        }
-    }
-
-    async function fetchUserOrders(email) {
+    async function fetchUserOrders() {
         document.getElementById('orders-grid').classList.add('hidden');
         document.getElementById('no-orders-msg').classList.add('hidden');
         document.getElementById('orders-loading').classList.remove('hidden');
 
         try {
-            const res = await fetch(`/api/orders?email=${encodeURIComponent(email)}`);
+            const res = await fetch(`/api/orders`);
             const data = await res.json();
 
             document.getElementById('orders-loading').classList.add('hidden');
@@ -191,8 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 grid.classList.remove('hidden');
-
-                // Set up filtering
                 setupFilters();
             } else {
                 document.getElementById('no-orders-msg').classList.remove('hidden');
@@ -240,49 +203,35 @@ document.addEventListener('DOMContentLoaded', () => {
         btnElement.innerHTML = '> PROCESSING...';
 
         try {
-            const user = JSON.parse(localStorage.getItem("dorkyUser"));
             const response = await fetch(`/api/approve/${bookingId}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email: user.email })
+                body: JSON.stringify({}) // Session handles auth now
             });
 
             const result = await response.json();
             if (result.status === 'success') {
-                showToast("Approved successfully.", "success");
+                if(window.showToast) window.showToast("Approved successfully.", "success");
                 setTimeout(() => {
-                    loadDashboardData(); // Refresh UI
+                    fetchUserOrders(); // Refresh UI
                 }, 1000);
             } else {
-                showToast(result.message || "Failed to approve project.", "error");
+                if(window.showToast) window.showToast(result.message || "Failed to approve project.", "error");
                 btnElement.disabled = false;
                 btnElement.innerHTML = originalText;
             }
         } catch (err) {
             console.error(err);
-            showToast("Error processing approval.", "error");
+            if(window.showToast) window.showToast("Error processing approval.", "error");
             btnElement.disabled = false;
             btnElement.innerHTML = originalText;
         }
     }
 
     // Call initially
-    loadDashboardData();
-
-    const originalSignIn = window.signInWithGoogle;
-    const originalSignOut = window.signOut;
-
-    window.signInWithGoogle = function() {
-        if(originalSignIn) originalSignIn();
-        setTimeout(loadDashboardData, 1100);
-    };
-
-    window.signOut = function() {
-        if(originalSignOut) originalSignOut();
-        setTimeout(loadDashboardData, 100);
-    };
+    fetchUserOrders();
 });
 </script>
 {% endblock %}

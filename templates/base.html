@@ -78,109 +78,7 @@ pointer-events: none;
 }
 </style>
 
-<!-- FIREBASE V12 CONFIGURATION (MODULE) -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-analytics.js";
-  import {
-    getAuth,
-    GoogleAuthProvider,
-    signInWithPopup,
-    onAuthStateChanged,
-    signOut,
-    setPersistence,
-    browserLocalPersistence
-  } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyCQhuPJ8hPTCXpCl19iZJO6ny2KciEKmG4",
-    authDomain: "dorkybuilds-7af8d.firebaseapp.com",
-    projectId: "dorkybuilds-7af8d",
-    storageBucket: "dorkybuilds-7af8d.firebasestorage.app",
-    messagingSenderId: "645564946181",
-    appId: "1:645564946181:web:44a1afd8976b2249c5c96c",
-    measurementId: "G-RC1Z9K9L9C"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  // Optional, might fail if analytics is blocked
-  try {
-      const analytics = getAnalytics(app);
-  } catch(e) {}
-
-  const auth = getAuth(app);
-  const provider = new GoogleAuthProvider();
-
-  // Set persistence
-  setPersistence(auth, browserLocalPersistence)
-      .then(() => console.log("✅ [FIREBASE] Init success: Local persistence enabled."))
-      .catch((e) => console.log("❌ [FIREBASE] Init failed to set persistence:", e));
-
-  // Expose global object
-  window.currentUser = null;
-
-  // Listen for auth state changes
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-        window.currentUser = {
-            name: user.displayName,
-            email: user.email,
-            uid: user.uid,
-            photo: user.photoURL
-        };
-        // Persist to localStorage to avoid flicker
-        localStorage.setItem("dorkyUser", JSON.stringify(window.currentUser));
-        window.updateAuthUI(window.currentUser);
-    } else {
-        window.currentUser = null;
-        localStorage.removeItem("dorkyUser");
-        window.updateAuthUI(null);
-
-        // Protect Routes
-        const path = window.location.pathname;
-        if (path.startsWith('/dashboard') || path.startsWith('/requirements')) {
-            window.location.href = "/login";
-        }
-    }
-  });
-
-  // Login Function
-  window.loginWithGoogle = function() {
-    console.log("⏳ [FIREBASE] Login attempt started...");
-    signInWithPopup(auth, provider)
-      .then((result) => {
-        console.log("✅ [FIREBASE] Login successful for:", result.user.email);
-        const user = result.user;
-        window.currentUser = {
-            name: user.displayName,
-            email: user.email,
-            uid: user.uid,
-            photo: user.photoURL
-        };
-        localStorage.setItem("dorkyUser", JSON.stringify(window.currentUser));
-
-        if (window.location.pathname === '/login' || window.location.pathname === '/') {
-            window.location.href = "/dashboard";
-        }
-      })
-      .catch((error) => {
-        console.error("❌ [FIREBASE] Login failed:", error);
-        if(window.showToast) {
-            window.showToast("Authentication failed.", "error");
-        }
-      });
-  };
-
-  // Logout Function
-  window.logoutUser = function() {
-    signOut(auth).then(() => {
-        localStorage.removeItem("dorkyUser");
-        window.location.href = "/login";
-    }).catch((error) => {
-        console.error("Logout failed:", error);
-    });
-  };
-</script>
 
 </head>
 <body class="selection:bg-primary selection:text-black min-h-screen flex flex-col">
@@ -209,7 +107,12 @@ pointer-events: none;
             <a href="/about" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[05] ORIGIN</a>
             <a href="/contact" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[06] CONTACT</a>
             <a href="/track" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[07] TRACK ORDER</a>
-            <a href="#" id="auth-btn" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4" onclick="handleAuthClick(event)">[08] LOGIN</a>
+            {% if session.get('user_id') %}
+            <a href="/dashboard" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[08] DASHBOARD</a>
+            <a href="/logout" class="text-on-surface-variant hover:text-red-500 transition-colors hover:underline decoration-red-500 underline-offset-4">[09] LOGOUT</a>
+            {% else %}
+            <a href="/login" class="hover:text-primary transition-colors hover:underline decoration-primary underline-offset-4">[08] LOGIN</a>
+            {% endif %}
         </div>
 
         <!-- Mobile Menu Button -->
@@ -234,7 +137,12 @@ pointer-events: none;
         <a href="/about" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[05] ORIGIN</a>
         <a href="/contact" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[06] CONTACT</a>
         <a href="/track" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[07] TRACK ORDER</a>
-        <a href="#" id="mobile-auth-btn" class="mobile-link hover:text-primary transition-colors pb-2" onclick="handleAuthClick(event)">[08] LOGIN</a>
+        {% if session.get('user_id') %}
+        <a href="/dashboard" class="mobile-link hover:text-primary transition-colors border-b border-surface-border pb-2">[08] DASHBOARD</a>
+        <a href="/logout" class="mobile-link text-on-surface-variant hover:text-red-500 transition-colors pb-2">[09] LOGOUT</a>
+        {% else %}
+        <a href="/login" class="mobile-link hover:text-primary transition-colors pb-2">[08] LOGIN</a>
+        {% endif %}
     </div>
 </div>
 
@@ -272,39 +180,6 @@ pointer-events: none;
 </button>
 
 <script src="/static/script.js"></script>
-<script>
-    // Define global handler for auth button clicks
-    window.handleAuthClick = function(e) {
-        e.preventDefault();
-        const storedUser = localStorage.getItem("dorkyUser");
-        if (storedUser) {
-            window.location.href = "/dashboard";
-        } else {
-            window.location.href = "/login";
-        }
-    };
 
-    // Auth UI Sync
-    window.updateAuthUI = function(user) {
-        const authBtn = document.getElementById("auth-btn");
-        const mobileAuthBtn = document.getElementById("mobile-auth-btn");
-
-        if (user) {
-            if (authBtn) authBtn.innerText = "[08] DASHBOARD";
-            if (mobileAuthBtn) mobileAuthBtn.innerText = "[08] DASHBOARD";
-        } else {
-            if (authBtn) authBtn.innerText = "[08] LOGIN";
-            if (mobileAuthBtn) mobileAuthBtn.innerText = "[08] LOGIN";
-        }
-    };
-
-    // Initial UI check to prevent flicker before Firebase loads
-    document.addEventListener("DOMContentLoaded", () => {
-        const storedUser = localStorage.getItem("dorkyUser");
-        if (storedUser) {
-            window.updateAuthUI(JSON.parse(storedUser));
-        }
-    });
-</script>
 </body>
 </html>

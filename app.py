@@ -3,22 +3,24 @@ import json
 import random
 import string
 import csv
+import uuid
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dorky_builds_super_secret_dev_key")
 
 DEBUG_MODE = os.environ.get("DEBUG", "true").lower() == "true"
 
-# Try to set up Google Sheets using ENV VARIABLES
 SHEET_CONNECTED = False
-sheet = None
+orders_sheet = None
+users_sheet = None
 
 def init_google_sheets():
-    global sheet, SHEET_CONNECTED
+    global orders_sheet, users_sheet, SHEET_CONNECTED
 
     creds_json_str = os.environ.get("GOOGLE_CREDS_JSON")
     sheet_id = os.environ.get("GOOGLE_SHEET_ID")
@@ -37,43 +39,73 @@ def init_google_sheets():
         client = gspread.authorize(creds)
 
         try:
-            sheet = client.open_by_key(sheet_id).sheet1
+            spreadsheet = client.open_by_key(sheet_id)
+            orders_sheet = spreadsheet.worksheet("Orders")
         except Exception as e:
-            if "404" in str(e):
+            if "WorksheetNotFound" in str(e):
+                orders_sheet = spreadsheet.sheet1
+                orders_sheet.update_title("Orders")
+            elif "404" in str(e):
                 print(f"❌ [FATAL] Google Sheets connection failed: 404 Not Found. Make sure you shared the sheet ({sheet_id}) with the service account email! Error: {e}")
+                return
             else:
                 print(f"❌ [FATAL] Google Sheets connection failed during open_by_key: {e}")
-            return
+                return
+
+        try:
+            users_sheet = spreadsheet.worksheet("Users")
+        except Exception as e:
+            if "WorksheetNotFound" in str(e):
+                users_sheet = spreadsheet.add_worksheet(title="Users", rows="1000", cols="10")
+            else:
+                print(f"❌ [FATAL] Error accessing/creating Users sheet: {e}")
+                return
 
         SHEET_CONNECTED = True
 
-        # Auto create headers including UID and displayName
-        headers = [
-            "booking_id", "uid", "name", "email", "phone",
+        # Auto create headers for Orders
+        order_headers = [
+            "booking_id", "user_id", "name", "email", "phone",
             "project_type", "plan", "delivery_speed", "features",
             "budget", "timeline",
             "status", "preview_link",
             "payment_status", "approved", "created_at", "last_updated"
         ]
         try:
-            existing = sheet.row_values(1)
-            if existing != headers:
-                print("⚠️ [SHEETS] Headers do not match. Inserting correct headers...")
-                sheet.insert_row(headers, 1)
+            existing_orders = orders_sheet.row_values(1)
+            if existing_orders != order_headers:
+                print("⚠️ [SHEETS] Orders headers do not match. Inserting correct headers...")
+                orders_sheet.insert_row(order_headers, 1)
         except Exception as e:
-            # If sheet is totally empty, row_values might fail
-            print("⚠️ [SHEETS] Sheet is empty. Initializing headers...")
-            sheet.insert_row(headers, 1)
+            print("⚠️ [SHEETS] Orders sheet is empty. Initializing headers...")
+            orders_sheet.insert_row(order_headers, 1)
+
+        # Auto create headers for Users
+        user_headers = ["uid", "name", "email", "password_hash", "created_at"]
+        try:
+            existing_users = users_sheet.row_values(1)
+            if existing_users != user_headers:
+                print("⚠️ [SHEETS] Users headers do not match. Inserting correct headers...")
+                users_sheet.insert_row(user_headers, 1)
+        except Exception as e:
+            print("⚠️ [SHEETS] Users sheet is empty. Initializing headers...")
+            users_sheet.insert_row(user_headers, 1)
 
         print("✅ [SHEETS] Successfully connected to Google Sheets and verified headers.")
     except Exception as e:
-        print(f"❌ [FATAL] Google Sheets connection failed: {e}. System will NOT save orders!")
+        print(f"❌ [FATAL] Google Sheets connection failed: {e}. System will NOT save data!")
 
 # Initialize on startup
 init_google_sheets()
 
 def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+@app.before_request
+def require_login():
+    protected_routes = ['/dashboard', '/requirements']
+    if request.path in protected_routes and 'user_id' not in session:
+        return redirect(url_for('login'))
 
 @app.route('/')
 def index():
@@ -111,9 +143,109 @@ def track():
 def dashboard():
     return render_template('dashboard.html')
 
-@app.route('/login')
+# --- USER AUTHENTICATION ---
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        if not name or not email or not password:
+            print(f"❌ [SIGNUP] Missing required fields for {email}")
+            return render_template('signup.html', error="All fields are required")
+
+        if not SHEET_CONNECTED:
+            print("❌ [SIGNUP] Database offline. Cannot register user.")
+            return render_template('signup.html', error="Database is currently disconnected. Please try again later.")
+
+        try:
+            # Check if email exists
+            records = users_sheet.get_all_records()
+            for r in records:
+                if r.get('email', '').lower() == email:
+                    print(f"❌ [SIGNUP] Registration failed: Email {email} already exists.")
+                    return render_template('signup.html', error="Email is already registered.")
+
+            uid = str(uuid.uuid4())
+            password_hash = generate_password_hash(password)
+            current_time = datetime.utcnow().isoformat() + "Z"
+
+            users_sheet.append_row([uid, name, email, password_hash, current_time])
+            print(f"✅ [SIGNUP] User registered successfully: {email} (UID: {uid})")
+
+            # Auto-login
+            session['user_id'] = uid
+            session['email'] = email
+            session['name'] = name
+            print(f"✅ [SESSION] Session created for {email}")
+
+            return redirect(url_for('dashboard'))
+
+        except Exception as e:
+            print(f"❌ [SIGNUP] Error saving user to database: {e}")
+            return render_template('signup.html', error="Internal server error during registration.")
+
+    return render_template('signup.html')
+
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        if not email or not password:
+            print(f"❌ [LOGIN] Missing credentials for {email}")
+            return render_template('login.html', error="Email and password required")
+
+        if not SHEET_CONNECTED:
+            print("❌ [LOGIN] Database offline. Cannot authenticate.")
+            return render_template('login.html', error="Database is currently disconnected.")
+
+        try:
+            print(f"⏳ [LOGIN] Attempting login for {email}")
+            records = users_sheet.get_all_records()
+            user_found = False
+
+            for r in records:
+                if r.get('email', '').lower() == email:
+                    user_found = True
+                    stored_hash = r.get('password_hash')
+                    if check_password_hash(stored_hash, password):
+                        session['user_id'] = str(r.get('uid'))
+                        session['email'] = email
+                        session['name'] = r.get('name', '')
+                        print(f"✅ [LOGIN] Success for {email} (UID: {session['user_id']})")
+                        return redirect(url_for('dashboard'))
+                    else:
+                        print(f"❌ [LOGIN] Invalid password for {email}")
+                        return render_template('login.html', error="Invalid email or password")
+
+            if not user_found:
+                print(f"❌ [LOGIN] Email not found: {email}")
+                return render_template('login.html', error="Invalid email or password")
+
+        except Exception as e:
+            print(f"❌ [LOGIN] Error during authentication: {e}")
+            return render_template('login.html', error="Internal server error during login.")
+
     return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    email = session.get('email', 'Unknown')
+    session.clear()
+    print(f"✅ [LOGOUT] Session cleared for {email}")
+    return redirect(url_for('login'))
+
+# --- END USER AUTHENTICATION ---
 
 @app.route('/contact-submit', methods=['POST'])
 def contact_submit():
@@ -127,6 +259,10 @@ def apply():
 
 @app.route('/submit-requirements', methods=['POST'])
 def submit_requirements():
+    if 'user_id' not in session:
+        print("❌ [SUBMIT] Unauthorized submission attempt (no session)")
+        return jsonify({"status": "error", "message": "Unauthorized. Please log in."}), 401
+
     data = request.form
 
     # Input validation
@@ -136,17 +272,13 @@ def submit_requirements():
             print(f"❌ [VALIDATION] Missing required field: {field}")
             return jsonify({"status": "error", "message": f"Missing required field: {field}"}), 400
 
-    uid = data.get('uid', '')
-    if not uid or uid == 'anonymous':
-        print(f"⚠️ [AUTH] Order submitted without verified UID for email: {data.get('email')}")
-
+    user_id = session.get('user_id')
     booking_id = generate_booking_id()
-    # ISO format timestamp
     current_time = datetime.utcnow().isoformat() + "Z"
 
     row_data = [
         booking_id,
-        uid,
+        user_id,
         data.get('name', ''),
         data.get('email', ''),
         data.get('phone', ''),
@@ -164,21 +296,21 @@ def submit_requirements():
         current_time    # last_updated
     ]
 
-    print(f"✅ [AUTH] Firebase UID received: {uid}")
+    print(f"✅ [SUBMIT] Received payload from User ID: {user_id}")
     if DEBUG_MODE:
         print(f"📦 [DEBUG] Incoming request payload: {data}")
 
     if SHEET_CONNECTED:
         try:
             # Check for uniqueness
-            existing_records = sheet.col_values(1) # Column A: booking_id
+            existing_records = orders_sheet.col_values(1) # Column A: booking_id
             while booking_id in existing_records:
                 print(f"⚠️ [COLLISION] Booking ID {booking_id} already exists. Regenerating...")
                 booking_id = generate_booking_id()
                 row_data[0] = booking_id
 
-            sheet.append_row(row_data)
-            print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to Google Sheets.")
+            orders_sheet.append_row(row_data)
+            print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to Orders sheet.")
         except Exception as e:
             print(f"❌ [SHEETS] Error writing booking {booking_id} to Google Sheets: {e}")
             if DEBUG_MODE:
@@ -197,9 +329,9 @@ def submit_requirements():
 def get_google_sheet_records():
     if SHEET_CONNECTED:
         try:
-            records = sheet.get_all_records()
+            records = orders_sheet.get_all_records()
             if DEBUG_MODE:
-                print(f"📦 [DEBUG] Fetched {len(records)} records from Google Sheets.")
+                print(f"📦 [DEBUG] Fetched {len(records)} records from Orders sheet.")
             return records
         except Exception as e:
             print(f"❌ [SHEETS] Google Sheets fetch error: {e}")
@@ -223,16 +355,17 @@ def api_track(booking_id):
             break
 
     if order:
+        # Sanitize sensitive fields if necessary
         return jsonify({"status": "success", "order": order})
     else:
         return jsonify({"status": "error", "message": "INVALID BOOKING ID"}), 404
 
-
 @app.route('/api/orders', methods=['GET'])
 def api_orders():
-    email = request.args.get('email')
-    if not email:
-        return jsonify({"status": "error", "message": "Email is required"}), 400
+    if 'user_id' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
+
+    user_id = session.get('user_id')
 
     if not SHEET_CONNECTED:
         return jsonify({"status": "error", "message": "Database is currently disconnected"}), 500
@@ -240,43 +373,45 @@ def api_orders():
     orders = []
     records = get_google_sheet_records()
     for r in records:
-        if r.get('email') == email:
+        # Filter by user_id
+        if str(r.get('user_id')) == str(user_id):
             orders.append(r)
 
     return jsonify({"status": "success", "orders": orders})
 
-
 @app.route('/api/approve/<booking_id>', methods=['POST'])
 def api_approve(booking_id):
-    data = request.json or {}
-    email = data.get('email')
+    if 'user_id' not in session:
+        return jsonify({"status": "error", "message": "Unauthorized"}), 401
 
-    if not booking_id or not email:
-        return jsonify({"status": "error", "message": "Booking ID and email required"}), 400
+    user_id = session.get('user_id')
+
+    if not booking_id:
+        return jsonify({"status": "error", "message": "Booking ID required"}), 400
 
     current_time = datetime.utcnow().isoformat() + "Z"
 
     if SHEET_CONNECTED:
         try:
-            cell = sheet.find(booking_id)
+            cell = orders_sheet.find(booking_id)
             if cell:
                 row_idx = cell.row
-                row_data = sheet.row_values(row_idx)
-                headers = sheet.row_values(1)
+                row_data = orders_sheet.row_values(row_idx)
+                headers = orders_sheet.row_values(1)
 
-                email_col_idx = headers.index('email') + 1
+                user_id_col_idx = headers.index('user_id') + 1
                 status_col_idx = headers.index('status') + 1
                 approved_col_idx = headers.index('approved') + 1
                 last_updated_col_idx = headers.index('last_updated') + 1
 
-                if row_data[email_col_idx-1] == email:
-                    sheet.update_cell(row_idx, status_col_idx, 'APPROVED')
-                    sheet.update_cell(row_idx, approved_col_idx, 'YES')
-                    sheet.update_cell(row_idx, last_updated_col_idx, current_time)
-                    print(f"✅ [SHEETS] Successfully approved booking {booking_id}.")
+                if str(row_data[user_id_col_idx-1]) == str(user_id):
+                    orders_sheet.update_cell(row_idx, status_col_idx, 'APPROVED')
+                    orders_sheet.update_cell(row_idx, approved_col_idx, 'YES')
+                    orders_sheet.update_cell(row_idx, last_updated_col_idx, current_time)
+                    print(f"✅ [SHEETS] Successfully approved booking {booking_id} by User {user_id}.")
                     return jsonify({"status": "success", "message": "Project approved successfully."})
                 else:
-                    print(f"❌ [AUTH] Unauthorized approval attempt on {booking_id} by {email}")
+                    print(f"❌ [AUTH] Unauthorized approval attempt on {booking_id} by {user_id}")
                     return jsonify({"status": "error", "message": "Unauthorized"}), 403
             else:
                 return jsonify({"status": "error", "message": "Order not found"}), 404
@@ -349,14 +484,14 @@ def api_admin_update_order():
 
     if SHEET_CONNECTED:
         try:
-            cell = sheet.find(booking_id)
+            cell = orders_sheet.find(booking_id)
             if cell:
                 row_idx = cell.row
-                headers = sheet.row_values(1)
+                headers = orders_sheet.row_values(1)
 
                 for key, value in updates.items():
                     col_idx = headers.index(key) + 1
-                    sheet.update_cell(row_idx, col_idx, value)
+                    orders_sheet.update_cell(row_idx, col_idx, value)
 
                 print(f"✅ [ADMIN] Updated order {booking_id}: {updates}")
                 return jsonify({"status": "success", "message": "Order updated successfully."})
