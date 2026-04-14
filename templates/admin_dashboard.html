@@ -34,7 +34,7 @@
                         <th class="p-4">Client</th>
                         <th class="p-4">Project & Finances</th>
                         <th class="p-4">Status & Preview</th>
-                        <th class="p-4">Admin Actions</th>
+                        <th class="p-4 w-[400px]">Admin Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-surface-border">
@@ -54,14 +54,15 @@
                             {% endif %}
                         </td>
                         <td class="p-4">
-                            {% set status = order.get('status') or order.get('Status') %}
+                            {% set status = order.get('order_status') or order.get('Order Status') or order.get('status') or 'CREATED' %}
                             <div class="mb-2">
-                                <span class="px-2 py-1 bg-black border border-surface-border inline-block {{ 'text-primary' if status == 'REQUESTED' else 'text-yellow-400' if status == 'IN_PROGRESS' else 'text-blue-400' if status == 'PREVIEW_READY' else 'text-purple-400' if status == 'APPROVED' else 'text-green-500' }}">
+                                <span class="px-2 py-1 bg-black border border-surface-border inline-block {{ 'text-primary' if status == 'CREATED' else 'text-yellow-400' if status == 'IN_PROGRESS' else 'text-blue-400' if status == 'PREVIEW_READY' else 'text-purple-400' if status == 'COMPLETED' else 'text-green-500' }}">
                                     {{ status }}
                                 </span>
                             </div>
 
-                            <div class="text-white mb-2">Pymt: <span class="{{ 'text-green-500' if order.get('payment_status') == 'Verified' else 'text-yellow-400' }}">{{ order.get('payment_status') }}</span></div>
+                            {% set pay_stat = order.get('payment_status') or order.get('Payment Status') %}
+                            <div class="text-white mb-2">Pymt: <span class="{{ 'text-green-500' if pay_stat == 'Verified' else 'text-yellow-400' }}">{{ pay_stat }}</span></div>
 
                             {% if order.get('screenshot_url') %}
                             <a href="{{ order.get('screenshot_url') }}" target="_blank" class="text-blue-400 hover:underline">View Receipt</a><br>
@@ -70,26 +71,36 @@
                         </td>
                         <td class="p-4">
                             <div class="flex flex-col gap-2 admin-form" data-id="{{ order.get('booking_id') or order.get('Booking ID') }}">
-                                <select name="status" class="w-full bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
-                                    <option value="REQUESTED" {% if status == 'REQUESTED' %}selected{% endif %}>REQUESTED</option>
-                                    <option value="IN_PROGRESS" {% if status == 'IN_PROGRESS' %}selected{% endif %}>IN_PROGRESS</option>
-                                    <option value="PREVIEW_READY" {% if status == 'PREVIEW_READY' %}selected{% endif %}>PREVIEW_READY</option>
-                                    <option value="APPROVED" {% if status == 'APPROVED' %}selected{% endif %}>APPROVED</option>
-                                    <option value="DELIVERED" {% if status == 'DELIVERED' %}selected{% endif %}>DELIVERED</option>
-                                </select>
+                                <div class="flex gap-2">
+                                    <select name="order_status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-[10px] font-mono" title="Order Lifecycle">
+                                        <option value="CREATED" {% if status == 'CREATED' %}selected{% endif %}>CREATED</option>
+                                        <option value="IN_PROGRESS" {% if status == 'IN_PROGRESS' %}selected{% endif %}>IN_PROGRESS</option>
+                                        <option value="PREVIEW_READY" {% if status == 'PREVIEW_READY' %}selected{% endif %}>PREVIEW_READY</option>
+                                        <option value="APPROVED" {% if status == 'APPROVED' %}selected{% endif %}>APPROVED</option>
+                                        <option value="COMPLETED" {% if status == 'COMPLETED' %}selected{% endif %}>COMPLETED</option>
+                                        <option value="DELIVERED" {% if status == 'DELIVERED' %}selected{% endif %}>DELIVERED</option>
+                                    </select>
 
-                                <input type="text" name="preview_link" placeholder="Preview Link URL" value="{{ order.get('preview_link') or order.get('Preview Link') }}" class="w-full bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
+                                    <select name="payment_status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-[10px] font-mono" title="Payment Control">
+                                        <option value="Pending" {% if order.get('payment_status') == 'Pending' %}selected{% endif %}>Pay: PENDING</option>
+                                        <option value="Verified" {% if order.get('payment_status') == 'Verified' %}selected{% endif %}>Pay: VERIFIED</option>
+                                        <option value="Rejected" {% if order.get('payment_status') == 'Rejected' %}selected{% endif %}>Pay: REJECTED</option>
+                                    </select>
+                                </div>
 
                                 <div class="flex gap-2">
-                                    <select name="payment_status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
-                                        <option value="Pending" {% if order.get('payment_status') == 'Pending' %}selected{% endif %}>Pending</option>
-                                        <option value="Verified" {% if order.get('payment_status') == 'Verified' %}selected{% endif %}>Verified</option>
-                                        <option value="Rejected" {% if order.get('payment_status') == 'Rejected' %}selected{% endif %}>Rejected</option>
+                                    <select name="preview_status" class="w-1/3 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-[10px] font-mono" title="Preview Status">
+                                        <option value="NOT_READY" {% if order.get('preview_status') == 'NOT_READY' %}selected{% endif %}>Prev: NOT_READY</option>
+                                        <option value="READY" {% if order.get('preview_status') == 'READY' %}selected{% endif %}>Prev: READY</option>
+                                        <option value="SENT" {% if order.get('preview_status') == 'SENT' %}selected{% endif %}>Prev: SENT</option>
                                     </select>
-                                    <button type="button" onclick="updateOrder(this)" class="w-1/2 bg-red-500 text-black font-bold py-2 hover:bg-white transition-colors text-xs">
-                                        SAVE
-                                    </button>
+
+                                    <input type="text" name="preview_link" placeholder="Preview Link URL" value="{{ order.get('preview_link') or order.get('Preview Link') }}" class="w-2/3 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
                                 </div>
+
+                                <button type="button" onclick="updateOrder(this)" class="w-full bg-red-500 text-black font-bold py-2 hover:bg-white transition-colors text-xs">
+                                    SAVE_CHANGES
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -252,9 +263,10 @@ document.querySelectorAll('.admin-tab-btn').forEach(btn => {
 async function updateOrder(btn) {
     const container = btn.closest('.admin-form');
     const bookingId = container.getAttribute('data-id');
-    const status = container.querySelector('select[name="status"]').value;
-    const previewLink = container.querySelector('input[name="preview_link"]').value;
+    const orderStatus = container.querySelector('select[name="order_status"]').value;
     const paymentStatus = container.querySelector('select[name="payment_status"]').value;
+    const previewStatus = container.querySelector('select[name="preview_status"]').value;
+    const previewLink = container.querySelector('input[name="preview_link"]').value;
 
     const originalText = btn.innerHTML;
     btn.innerHTML = '...';
@@ -268,9 +280,10 @@ async function updateOrder(btn) {
             },
             body: JSON.stringify({
                 booking_id: bookingId,
-                status: status,
-                preview_link: previewLink,
-                payment_status: paymentStatus
+                order_status: orderStatus,
+                payment_status: paymentStatus,
+                preview_status: previewStatus,
+                preview_link: previewLink
             })
         });
 

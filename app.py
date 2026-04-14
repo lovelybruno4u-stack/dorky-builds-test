@@ -24,6 +24,9 @@ DEBUG_MODE = os.environ.get("DEBUG", "true").lower() == "true"
 
 SHEET_CONNECTED = False
 orders_sheet = None
+payments_sheet = None
+preview_sheet = None
+order_status_sheet = None
 users_sheet = None
 coupons_sheet = None
 banner_sheet = None
@@ -121,7 +124,20 @@ def init_google_sheets():
             return spreadsheet.add_worksheet(title=title, rows=rows, cols=cols)
 
     try:
-        orders_sheet = get_or_create_worksheet("Orders")
+        # 1. ARCHIVE OLD SYSTEM
+        try:
+            old_orders = spreadsheet.worksheet("Orders")
+            print("⏳ [ARCHIVE] Archiving old 'Orders' sheet to 'OLD_ORDERS_BACKUP'...")
+            old_orders.update_title("OLD_ORDERS_BACKUP")
+        except gspread.exceptions.WorksheetNotFound:
+            pass # No old orders sheet to archive
+
+        # 2. CREATE MODULAR SHEETS
+        orders_sheet = get_or_create_worksheet("ORDERS")
+        payments_sheet = get_or_create_worksheet("PAYMENTS")
+        preview_sheet = get_or_create_worksheet("PREVIEW")
+        order_status_sheet = get_or_create_worksheet("ORDER_STATUS")
+
         users_sheet = get_or_create_worksheet("Users")
         coupons_sheet = get_or_create_worksheet("Coupons")
         banner_sheet = get_or_create_worksheet("Banner_Control")
@@ -153,9 +169,22 @@ def init_google_sheets():
 
     ensure_headers(orders_sheet, [
         "booking_id", "user_id", "name", "email", "phone",
-        "project_type", "total_price", "advance_paid", "remaining_amount",
+        "project_type", "plan", "delivery_speed", "features",
+        "created_at", "last_updated"
+    ])
+
+    ensure_headers(payments_sheet, [
+        "booking_id", "total_price", "advance_paid", "remaining_amount",
         "payment_status", "upi_ref_id", "screenshot_url",
-        "coupon_applied", "discount_amount", "final_price", "status", "preview_link", "approved", "timestamp", "last_updated"
+        "discount_amount", "final_price", "coupon_applied"
+    ])
+
+    ensure_headers(preview_sheet, [
+        "booking_id", "preview_link", "preview_status", "approved", "feedback"
+    ])
+
+    ensure_headers(order_status_sheet, [
+        "booking_id", "order_status", "last_updated"
     ])
 
     ensure_headers(users_sheet, ["uid", "name", "email", "password_hash", "created_at"])
@@ -391,28 +420,46 @@ def submit_requirements():
     booking_id = generate_booking_id()
     current_time = datetime.utcnow().isoformat() + "Z"
 
-    # New Columns matching schema
-    row_data = [
+    # New Modualr Schema
+    order_data = [
         booking_id,
         user_id,
         data.get('name', ''),
         data.get('email', ''),
         data.get('phone', ''),
         data.get('projectType', ''),
+        data.get('plan', ''),
+        data.get('deliverySpeed', ''),
+        data.get('features', ''),
+        current_time,
+        current_time
+    ]
+
+    payment_data = [
+        booking_id,
         data.get('total_price', '0'),
         data.get('advance_paid', '0'),
         data.get('remaining_amount', '0'),
-        "Pending",      # payment_status
+        "PENDING",
         data.get('upi_ref_id', ''),
         screenshot_url,
-        data.get('coupon_applied', ''),
         data.get('discount_amount', '0'),
         data.get('final_price', '0'),
-        "REQUESTED",    # status
-        "",             # preview_link
-        "NO",           # approved
-        current_time,   # timestamp/created_at
-        current_time    # last_updated
+        data.get('coupon_applied', '')
+    ]
+
+    preview_data = [
+        booking_id,
+        "",
+        "NOT_READY",
+        "NO",
+        ""
+    ]
+
+    status_data = [
+        booking_id,
+        "CREATED",
+        current_time
     ]
 
     print(f"✅ [SUBMIT] Received payload from User ID: {user_id}")
@@ -421,15 +468,22 @@ def submit_requirements():
 
     if SHEET_CONNECTED:
         try:
-            # Check for uniqueness
-            existing_records = orders_sheet.col_values(1) # Column A: booking_id
+            # Check for uniqueness in ORDERS sheet
+            existing_records = orders_sheet.col_values(1)
             while booking_id in existing_records:
                 print(f"⚠️ [COLLISION] Booking ID {booking_id} already exists. Regenerating...")
                 booking_id = generate_booking_id()
-                row_data[0] = booking_id
+                order_data[0] = booking_id
+                payment_data[0] = booking_id
+                preview_data[0] = booking_id
+                status_data[0] = booking_id
 
-            orders_sheet.append_row(row_data)
-            print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to Orders sheet.")
+            orders_sheet.append_row(order_data)
+            payments_sheet.append_row(payment_data)
+            preview_sheet.append_row(preview_data)
+            order_status_sheet.append_row(status_data)
+
+            print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to all modular sheets.")
             log_admin_action("ORDER_CREATED", f"User {user_id} created order {booking_id}")
         except Exception as e:
             print(f"❌ [SHEETS] Error writing booking {booking_id} to Google Sheets: {e}")
@@ -458,8 +512,6 @@ def get_google_sheet_records():
     else:
         print("❌ [SHEETS] Cannot fetch records: Database disconnected.")
     return []
-
-@app.route('/api/track/<booking_id>', methods=['GET'])
 
 @app.route('/api/banner', methods=['GET'])
 def api_banner():
@@ -537,6 +589,7 @@ def validate_coupon():
         print(f"❌ [COUPON] Error: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
 
+@app.route('/api/track/<booking_id>', methods=['GET'])
 def api_track(booking_id):
     booking_id = booking_id.strip().upper()
     if not booking_id:
