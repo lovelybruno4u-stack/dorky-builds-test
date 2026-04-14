@@ -7,7 +7,8 @@ import uuid
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import time
+from google.oauth2.service_account import Credentials
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
@@ -22,81 +23,139 @@ users_sheet = None
 def init_google_sheets():
     global orders_sheet, users_sheet, SHEET_CONNECTED
 
-    creds_json_str = os.environ.get("GOOGLE_CREDS_JSON")
-    sheet_id = os.environ.get("GOOGLE_SHEET_ID")
+    creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "").strip()
+    sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
 
-    if not creds_json_str or not sheet_id:
-        print("❌ [FATAL] Google Sheets connection failed: GOOGLE_CREDS_JSON or GOOGLE_SHEET_ID not set. System will NOT save orders!")
+    # 1. SHEET ID HARDENING & ENV VALIDATION
+    if not creds_json_str:
+        print("❌ [FATAL] GOOGLE_CREDS_JSON is missing. System will NOT save data to Google Sheets.")
+        SHEET_CONNECTED = False
         return
 
+    if not sheet_id:
+        print("❌ [FATAL] GOOGLE_SHEET_ID is missing. System will NOT save data to Google Sheets.")
+        SHEET_CONNECTED = False
+        return
+
+    if len(sheet_id) < 20 or " " in sheet_id:
+        print(f"❌ [FATAL] Invalid GOOGLE_SHEET_ID format: {repr(sheet_id)}")
+        SHEET_CONNECTED = False
+        return
+
+    print(f"✅ [DEBUG] SHEET_ID format validated: {repr(sheet_id)}")
+
+    # 2. GOOGLE AUTH FIX
     try:
         creds_dict = json.loads(creds_json_str)
-        scope = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        client = gspread.authorize(creds)
+    except json.JSONDecodeError as e:
+        print(f"❌ [FATAL] GOOGLE_CREDS_JSON is not valid JSON: {e}")
+        SHEET_CONNECTED = False
+        return
 
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+
+    try:
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+        client = gspread.authorize(creds)
+        print("✅ [AUTH] Google Auth Service Account credentials verified successfully.")
+    except Exception as e:
+        print(f"❌ [FATAL] Google Auth failed. Check GOOGLE_CREDS_JSON permissions/format: {e}")
+        SHEET_CONNECTED = False
+        return
+
+    # 3. CONNECTION FLOW IMPROVEMENT (RETRY LOGIC & 404/403 HANDLING)
+    max_retries = 3
+    spreadsheet = None
+
+    for attempt in range(1, max_retries + 1):
         try:
+            print(f"⏳ [CONNECT] Attempting to open spreadsheet (Attempt {attempt}/{max_retries})...")
             spreadsheet = client.open_by_key(sheet_id)
-            orders_sheet = spreadsheet.worksheet("Orders")
-        except Exception as e:
-            if "WorksheetNotFound" in str(e):
-                orders_sheet = spreadsheet.sheet1
-                orders_sheet.update_title("Orders")
-            elif "404" in str(e):
-                print(f"❌ [FATAL] Google Sheets connection failed: 404 Not Found. Make sure you shared the sheet ({sheet_id}) with the service account email! Error: {e}")
-                return
+            print("✅ [CONNECT] Spreadsheet opened successfully.")
+            break
+        except gspread.exceptions.APIError as e:
+            error_msg = str(e)
+            if "403" in error_msg or "PERMISSION_DENIED" in error_msg:
+                print(f"❌ [API_ERROR 403] Permission Denied or Google Sheets API disabled. Ensure the Google Sheets API is enabled in Google Cloud Console and the Service Account has Editor access.")
+                break # Non-recoverable without admin action
+            elif "404" in error_msg or "NOT_FOUND" in error_msg:
+                print(f"❌ [API_ERROR 404] Spreadsheet Not Found. The SHEET_ID is wrong, OR the Service Account ({creds_dict.get('client_email')}) has not been invited to edit the sheet.")
+                break # Non-recoverable without admin action
             else:
-                print(f"❌ [FATAL] Google Sheets connection failed during open_by_key: {e}")
-                return
+                print(f"⚠️ [API_ERROR] Unexpected API error: {e}")
+                time.sleep(2 ** attempt)
+        except Exception as e:
+            print(f"⚠️ [CONNECT] Failed to open spreadsheet on attempt {attempt}: {e}")
+            time.sleep(2 ** attempt)
+
+    if not spreadsheet:
+        print("❌ [FATAL] Failed to connect to spreadsheet after retries. Entering failsafe mode.")
+        SHEET_CONNECTED = False
+        return
+
+    # 4. WORKSHEET ACCESS & HEADERS
+    try:
+        try:
+            orders_sheet = spreadsheet.worksheet("Orders")
+            print("✅ [WORKSHEET] Found existing 'Orders' worksheet.")
+        except gspread.exceptions.WorksheetNotFound:
+            print("⏳ [WORKSHEET] 'Orders' worksheet not found. Converting default sheet1...")
+            orders_sheet = spreadsheet.sheet1
+            orders_sheet.update_title("Orders")
+            print("✅ [WORKSHEET] 'Orders' worksheet configured.")
 
         try:
             users_sheet = spreadsheet.worksheet("Users")
-        except Exception as e:
-            if "WorksheetNotFound" in str(e):
-                users_sheet = spreadsheet.add_worksheet(title="Users", rows="1000", cols="10")
-            else:
-                print(f"❌ [FATAL] Error accessing/creating Users sheet: {e}")
-                return
-
-        SHEET_CONNECTED = True
-
-        # Auto create headers for Orders
-        order_headers = [
-            "booking_id", "user_id", "name", "email", "phone",
-            "project_type", "plan", "delivery_speed", "features",
-            "budget", "timeline",
-            "status", "preview_link",
-            "payment_status", "approved", "created_at", "last_updated"
-        ]
-        try:
-            existing_orders = orders_sheet.row_values(1)
-            if existing_orders != order_headers:
-                print("⚠️ [SHEETS] Orders headers do not match. Inserting correct headers...")
-                orders_sheet.insert_row(order_headers, 1)
-        except Exception as e:
-            print("⚠️ [SHEETS] Orders sheet is empty. Initializing headers...")
-            orders_sheet.insert_row(order_headers, 1)
-
-        # Auto create headers for Users
-        user_headers = ["uid", "name", "email", "password_hash", "created_at"]
-        try:
-            existing_users = users_sheet.row_values(1)
-            if existing_users != user_headers:
-                print("⚠️ [SHEETS] Users headers do not match. Inserting correct headers...")
-                users_sheet.insert_row(user_headers, 1)
-        except Exception as e:
-            print("⚠️ [SHEETS] Users sheet is empty. Initializing headers...")
-            users_sheet.insert_row(user_headers, 1)
-
-        print("✅ [SHEETS] Successfully connected to Google Sheets and verified headers.")
+            print("✅ [WORKSHEET] Found existing 'Users' worksheet.")
+        except gspread.exceptions.WorksheetNotFound:
+            print("⏳ [WORKSHEET] 'Users' worksheet not found. Creating new worksheet...")
+            users_sheet = spreadsheet.add_worksheet(title="Users", rows="1000", cols="10")
+            print("✅ [WORKSHEET] 'Users' worksheet configured.")
     except Exception as e:
-        print(f"❌ [FATAL] Google Sheets connection failed: {e}. System will NOT save data!")
+        print(f"❌ [FATAL] Error configuring worksheets: {e}")
+        SHEET_CONNECTED = False
+        return
+
+    # 5. AUTO-CREATE HEADERS
+    SHEET_CONNECTED = True
+
+    order_headers = [
+        "booking_id", "user_id", "name", "email", "phone",
+        "project_type", "plan", "delivery_speed", "features",
+        "budget", "timeline",
+        "status", "preview_link",
+        "payment_status", "approved", "created_at", "last_updated"
+    ]
+    try:
+        existing_orders = orders_sheet.row_values(1)
+        if existing_orders != order_headers:
+            print("⚠️ [SHEETS] Orders headers do not match. Fixing...")
+            orders_sheet.insert_row(order_headers, 1)
+    except Exception as e:
+        print("⚠️ [SHEETS] Orders sheet empty. Initializing headers...")
+        orders_sheet.insert_row(order_headers, 1)
+
+    user_headers = ["uid", "name", "email", "password_hash", "created_at"]
+    try:
+        existing_users = users_sheet.row_values(1)
+        if existing_users != user_headers:
+            print("⚠️ [SHEETS] Users headers do not match. Fixing...")
+            users_sheet.insert_row(user_headers, 1)
+    except Exception as e:
+        print("⚠️ [SHEETS] Users sheet empty. Initializing headers...")
+        users_sheet.insert_row(user_headers, 1)
+
+    print("🚀 [READY] Google Sheets backend is fully configured and online.")
 
 # Initialize on startup
-init_google_sheets()
+try:
+    init_google_sheets()
+except Exception as e:
+    print(f"❌ [CRITICAL] Unhandled exception during init_google_sheets: {e}")
+    SHEET_CONNECTED = False
 
 def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
