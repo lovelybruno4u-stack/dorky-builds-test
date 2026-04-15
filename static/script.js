@@ -253,17 +253,9 @@ document.addEventListener('DOMContentLoaded', () => {
         closeTerminal.addEventListener('click', toggleTerminal);
 
         const commands = {
-            'help': 'Available commands:
-- help: Show this message
-- clear: Clear terminal output
-- about: Display system info
-- deploy: Initiate deployment sequence
-- contact: Open communication link
-- sudo: Request elevated privileges',
+            'help': 'Available commands:\n- help: Show this message\n- clear: Clear terminal output\n- about: Display system info\n- deploy: Initiate deployment sequence\n- contact: Open communication link\n- sudo: Request elevated privileges',
             'clear': () => { terminalOutput.innerHTML = ''; return ''; },
-            'about': 'Dorky Builds OS v1.0.0
-Kernel: Hacker_Mindset_x64
-Mission: Build production-grade systems.',
+            'about': 'Dorky Builds OS v1.0.0\nKernel: Hacker_Mindset_x64\nMission: Build production-grade systems.',
             'deploy': () => { window.location.href = '/services'; return 'Redirecting to Engine Modules...'; },
             'contact': () => { window.location.href = '/contact'; return 'Navigating to contact module...'; },
             'sudo': 'Access denied. Incident reported.'
@@ -599,11 +591,21 @@ window.submitFinalOrder = async function() {
     const name = document.getElementById('req-name').value.trim();
     const email = document.getElementById('req-email').value.trim();
     const phone = document.getElementById('req-phone').value.trim();
-    const features = document.getElementById('req-features').value.trim();
+    let selectedParams = [];
+    document.querySelectorAll('input[name="param_features"]:checked').forEach(el => {
+        selectedParams.push(el.value);
+    });
+    const addDetails = document.getElementById('req-features').value.trim();
+    let features = selectedParams.length > 0 ? "Parameters: " + selectedParams.join(', ') : "";
+    if (addDetails) {
+        features += features ? " | Details: " + addDetails : "Details: " + addDetails;
+    }
+
+    if(!features) features = "Standard Build";
     const upiRef = document.getElementById('req-upi-ref').value.trim();
     const screenshotInput = document.getElementById('req-screenshot');
 
-    if(!name || !email || !features || !upiRef || !screenshotInput.files[0]) {
+    if(!name || !email || !upiRef || !screenshotInput.files[0]) {
         if(window.showToast) window.showToast("Missing required checkout fields or screenshot.", "error");
         return;
     }

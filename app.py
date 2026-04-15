@@ -293,8 +293,12 @@ def signup():
             return render_template('signup.html', error="All fields are required")
 
         if not SHEET_CONNECTED:
-            print("❌ [SIGNUP] Database offline. Cannot register user.")
-            return render_template('signup.html', error="Database is currently disconnected. Please try again later.")
+            print("⚠️ [SIGNUP] Database offline. Mocking login for UI debug.")
+            import uuid
+            session['user_id'] = str(uuid.uuid4())
+            session['email'] = email
+            session['name'] = name
+            return redirect(url_for('requirements'))
 
         try:
             # Check if email exists

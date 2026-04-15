@@ -138,11 +138,47 @@
                         <label class="block text-xs text-primary mb-1">> SELECTED_PLAN</label>
                         <input type="text" readonly id="req-plan" class="w-full bg-surface border border-surface-border p-3 text-on-surface-variant font-mono text-sm cursor-not-allowed">
                     </div>
+                    <div>
+                        <label class="block text-xs text-primary mb-1">> BUDGET_RANGE</label>
+                        <input type="text" required id="req-budget" placeholder="e.g. ₹10,000" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm transition-colors">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-primary mb-1">> TIMELINE</label>
+                        <input type="text" required id="req-timeline" placeholder="e.g. 2 weeks" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm transition-colors">
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs text-primary mb-1">> CORE_FEATURES_NEEDED</label>
-                    <textarea required id="req-features" rows="4" class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm resize-none transition-colors"></textarea>
+                <div class="border-t border-surface-border pt-6 mt-6">
+                    <label class="block text-sm font-bold text-primary mb-4">> PROJECT_PARAMETERS</label>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        <label class="flex items-center gap-3 p-3 brutalist-border bg-black hover:border-primary cursor-pointer transition-colors group">
+                            <input type="checkbox" name="param_features" value="Authentication" class="w-4 h-4 bg-surface border-surface-border text-primary focus:ring-primary">
+                            <span class="text-on-surface-variant group-hover:text-white text-xs font-mono">Authentication</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 brutalist-border bg-black hover:border-primary cursor-pointer transition-colors group">
+                            <input type="checkbox" name="param_features" value="Database" class="w-4 h-4 bg-surface border-surface-border text-primary focus:ring-primary">
+                            <span class="text-on-surface-variant group-hover:text-white text-xs font-mono">Database</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 brutalist-border bg-black hover:border-primary cursor-pointer transition-colors group">
+                            <input type="checkbox" name="param_features" value="API Integration" class="w-4 h-4 bg-surface border-surface-border text-primary focus:ring-primary">
+                            <span class="text-on-surface-variant group-hover:text-white text-xs font-mono">API Integration</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 brutalist-border bg-black hover:border-primary cursor-pointer transition-colors group">
+                            <input type="checkbox" name="param_features" value="Admin Panel" class="w-4 h-4 bg-surface border-surface-border text-primary focus:ring-primary">
+                            <span class="text-on-surface-variant group-hover:text-white text-xs font-mono">Admin Panel</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 brutalist-border bg-black hover:border-primary cursor-pointer transition-colors group">
+                            <input type="checkbox" name="param_features" value="Payment Gateway" class="w-4 h-4 bg-surface border-surface-border text-primary focus:ring-primary">
+                            <span class="text-on-surface-variant group-hover:text-white text-xs font-mono">Payment Gateway</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-3 brutalist-border bg-black hover:border-primary cursor-pointer transition-colors group">
+                            <input type="checkbox" name="param_features" value="Analytics" class="w-4 h-4 bg-surface border-surface-border text-primary focus:ring-primary">
+                            <span class="text-on-surface-variant group-hover:text-white text-xs font-mono">Analytics</span>
+                        </label>
+                    </div>
+
+                    <label class="block text-xs text-primary mb-1">> ADDITIONAL_DETAILS</label>
+                    <textarea id="req-features" rows="3" placeholder="Describe any custom requirements..." class="w-full bg-black border border-surface-border p-3 text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary font-mono text-sm resize-none transition-colors"></textarea>
                 </div>
 
                 <button type="button" onclick="goToStep(4)" class="w-full bg-primary text-black font-bold py-4 hover:bg-white transition-colors uppercase tracking-widest text-sm relative overflow-hidden group">
