@@ -171,11 +171,7 @@ def init_google_sheets():
                 for row in default_data:
                     ws.append_row(row)
 
-    ensure_headers(orders_sheet, [
-        "booking_id", "user_id", "name", "email", "phone",
-        "project_type", "plan", "delivery_speed", "features",
-        "created_at", "last_updated"
-    ])
+    ensure_headers(orders_sheet, ["Order ID", "Name", "Email", "Build Type", "Status", "Preview Link", "Payment Status", "Notes", "Timestamp"])
 
     ensure_headers(payments_sheet, [
         "booking_id", "total_price", "advance_paid", "remaining_amount",
@@ -761,6 +757,9 @@ def admin_update_banner():
     if not session.get('is_admin'):
         return jsonify({"status": "error"}), 403
     data = request.form
+    if not SHEET_CONNECTED or banner_sheet is None:
+        print('❌ [ADMIN] Cannot update banner. Sheet disconnected.')
+        return redirect(url_for('admin_dashboard'))
     try:
         # Assuming banner is always row 2
         banner_sheet.update_cell(2, 1, data.get('banner_text', ''))
@@ -779,6 +778,9 @@ def admin_update_settings():
     if not session.get('is_admin'):
         return jsonify({"status": "error"}), 403
     data = request.form
+    if not SHEET_CONNECTED or settings_sheet is None:
+        print('❌ [ADMIN] Cannot update settings. Sheet disconnected.')
+        return redirect(url_for('admin_dashboard'))
     try:
         # Need to iterate and update or just clear and rewrite settings
         # Faster: just update matching keys
@@ -798,6 +800,9 @@ def admin_add_coupon():
     if not session.get('is_admin'):
         return jsonify({"status": "error"}), 403
     data = request.form
+    if not SHEET_CONNECTED or coupons_sheet is None:
+        print('❌ [ADMIN] Cannot add coupon. Sheet disconnected.')
+        return redirect(url_for('admin_dashboard'))
     try:
         coupons_sheet.append_row([
             data.get('coupon_code', '').upper().strip(),
