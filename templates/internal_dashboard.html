@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section id="launch-control" class="py-12 md:py-24 min-h-[70vh] flex flex-col">
+    <div class="mb-12 text-center w-full">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4">> 🚀 Dorky Builds Launch Control</h2>
+        <p class="text-on-surface-variant text-lg">Internal system monitoring & testing</p>
+    </div>
+
+    <!-- Countdown & Progress -->
+    <div class="w-full max-w-4xl mx-auto mb-12 brutalist-border bg-surface p-6 md:p-8">
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 border-b-2 border-surface-border pb-8">
+            <div class="text-center md:text-left mb-6 md:mb-0">
+                <span class="text-primary font-bold text-sm tracking-widest block mb-2">> LAUNCH_DATE</span>
+                <div id="countdown" class="text-3xl font-mono text-white animate-pulse">
+                    CALCULATING...
+                </div>
+                <div class="text-on-surface-variant text-xs mt-1">APRIL 22, 2026 00:00:00 UTC</div>
+            </div>
+            <div class="text-center md:text-right w-full md:w-1/2">
+                <span class="text-primary font-bold text-sm tracking-widest block mb-2">> SYSTEM_READINESS</span>
+                <div class="w-full bg-black border-2 border-surface-border h-8 mb-2 relative">
+                    <div id="progress-bar-fill" class="h-full bg-primary transition-all duration-1000 ease-in-out" style="width: {{ progress }}%"></div>
+                    <div class="absolute inset-0 flex items-center justify-center font-bold text-black mix-blend-difference">
+                        <span id="progress-text">{{ progress }}% TESTED & WORKING</span>
+                    </div>
+                </div>
+                <div class="text-on-surface-variant text-xs"><span id="working-count">{{ working }}</span> / <span id="total-count">{{ total }}</span> FEATURES VERIFIED</div>
+            </div>
+        </div>
+
+        <div class="text-center mb-8">
+            <h3 class="text-xl font-bold text-white uppercase tracking-wider">> QA_CHECKLIST</h3>
+        </div>
+
+        <!-- Dynamic Category Grouping -->
+        <div class="space-y-8">
+            {% for category, features in categories.items() %}
+            <div class="border border-surface-border bg-black p-4">
+                <h4 class="text-primary font-bold uppercase tracking-widest border-b border-surface-border pb-2 mb-4">> {{ category }}</h4>
+                <div class="space-y-4">
+                    {% for feature in features %}
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center p-3 bg-surface border border-surface-border gap-4 feature-row" data-name="{{ feature.get('Feature Name') }}">
+                        <div class="md:w-1/3">
+                            <span class="text-white font-bold text-sm">{{ feature.get('Feature Name') }}</span>
+                            <div class="text-on-surface-variant text-[10px] mt-1">Last Updated: <span class="ts-display">{{ feature.get('Last Updated Timestamp', 'Never') }}</span></div>
+                        </div>
+
+                        <div class="w-full md:w-2/3 flex flex-col md:flex-row gap-2">
+                            <select class="status-select bg-black border-2 border-surface-border p-2 text-white focus:border-primary text-xs font-mono w-full md:w-1/3" onchange="updateFeature(this)">
+                                <option value="Pending" {% if feature.get('Status') == 'Pending' %}selected{% endif %}>[ ] Pending</option>
+                                <option value="Tested" {% if feature.get('Status') == 'Tested' %}selected{% endif %}>[?] Tested</option>
+                                <option value="Working" {% if feature.get('Status') == 'Working' %}selected{% endif %}>[OK] Working</option>
+                                <option value="Failed" {% if feature.get('Status') == 'Failed' %}selected{% endif %}>[X] Failed</option>
+                            </select>
+
+                            <input type="text" class="notes-input flex-grow bg-black border-2 border-surface-border p-2 text-white focus:border-primary text-xs font-mono placeholder-on-surface-variant" placeholder="Add testing notes here..." value="{{ feature.get('Notes', '') }}" onblur="updateFeature(this)">
+
+                            <span class="sync-indicator hidden material-symbols-outlined text-primary text-xl self-center animate-spin">sync</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<script>
+// --- COUNTDOWN LOGIC ---
+const launchDate = new Date("April 22, 2026 00:00:00 UTC").getTime();
+
+const countdownTimer = setInterval(function() {
+    const now = new Date().getTime();
+    const distance = launchDate - now;
+
+    if (distance < 0) {
+        clearInterval(countdownTimer);
+        document.getElementById("countdown").innerHTML = "LAUNCHED!";
+        return;
+    }
+
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+    document.getElementById("countdown").innerHTML =
+        days + "d " +
+        String(hours).padStart(2, '0') + "h " +
+        String(minutes).padStart(2, '0') + "m " +
+        String(seconds).padStart(2, '0') + "s";
+}, 1000);
+
+
+// --- REAL-TIME SYNC LOGIC ---
+let workingCount = parseInt(document.getElementById('working-count').innerText) || 0;
+const totalCount = parseInt(document.getElementById('total-count').innerText) || 1;
+
+async function updateFeature(element) {
+    const row = element.closest('.feature-row');
+    const featureName = row.dataset.name;
+    const statusSelect = row.querySelector('.status-select');
+    const notesInput = row.querySelector('.notes-input');
+    const syncIndicator = row.querySelector('.sync-indicator');
+
+    // UI Feedback
+    syncIndicator.classList.remove('hidden');
+    syncIndicator.textContent = 'sync';
+    syncIndicator.classList.add('animate-spin', 'text-primary');
+    syncIndicator.classList.remove('text-red-500', 'text-green-500');
+
+    try {
+        const response = await fetch('/api/internal/launch-tracker/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                feature_name: featureName,
+                status: statusSelect.value,
+                notes: notesInput.value
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'success') {
+            syncIndicator.classList.remove('animate-spin');
+            syncIndicator.textContent = 'check_circle';
+            syncIndicator.classList.replace('text-primary', 'text-green-500');
+            row.querySelector('.ts-display').innerText = new Date().toISOString() + 'Z';
+
+            // Recalculate working count visually without reload
+            recalculateProgress();
+
+            setTimeout(() => {
+                syncIndicator.classList.add('hidden');
+            }, 2000);
+        } else {
+            throw new Error(result.message);
+        }
+    } catch (e) {
+        console.error("Sync failed:", e);
+        syncIndicator.classList.remove('animate-spin');
+        syncIndicator.textContent = 'error';
+        syncIndicator.classList.replace('text-primary', 'text-red-500');
+        if(window.showToast) window.showToast('Failed to save to database.', 'error');
+
+        setTimeout(() => {
+            syncIndicator.classList.add('hidden');
+        }, 3000);
+    }
+}
+
+function recalculateProgress() {
+    const allSelects = document.querySelectorAll('.status-select');
+    let currentWorking = 0;
+    allSelects.forEach(sel => {
+        if (sel.value === 'Working') {
+            currentWorking++;
+        }
+    });
+
+    document.getElementById('working-count').innerText = currentWorking;
+
+    const progress = totalCount > 0 ? Math.floor((currentWorking / totalCount) * 100) : 0;
+    document.getElementById('progress-bar-fill').style.width = progress + '%';
+    document.getElementById('progress-text').innerText = progress + '% TESTED & WORKING';
+}
+</script>
+{% endblock %}

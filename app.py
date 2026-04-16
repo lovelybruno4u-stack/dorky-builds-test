@@ -36,9 +36,10 @@ coupons_sheet = None
 banner_sheet = None
 settings_sheet = None
 logs_sheet = None
+launch_tracker_sheet = None
 
 def init_google_sheets():
-    global orders_sheet, users_sheet, coupons_sheet, banner_sheet, settings_sheet, logs_sheet, SHEET_CONNECTED
+    global orders_sheet, users_sheet, coupons_sheet, banner_sheet, settings_sheet, logs_sheet, launch_tracker_sheet, SHEET_CONNECTED
 
     creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "").strip()
     sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
@@ -147,6 +148,7 @@ def init_google_sheets():
         banner_sheet = get_or_create_worksheet("Banner_Control")
         settings_sheet = get_or_create_worksheet("Settings")
         logs_sheet = get_or_create_worksheet("Admin_Logs")
+        launch_tracker_sheet = get_or_create_worksheet("LaunchTracker")
     except Exception as e:
         print(f"❌ [FATAL] Error configuring worksheets: {e}")
         SHEET_CONNECTED = False
@@ -209,6 +211,10 @@ def init_google_sheets():
 
     ensure_headers(logs_sheet, ["action", "details", "timestamp"])
 
+    ensure_headers(launch_tracker_sheet, [
+        "Feature Name", "Category", "Status", "Notes", "Last Updated Timestamp"
+    ], [["Homepage UI Design", "CORE UI", "Pending", "", ""], ["Responsive Design", "CORE UI", "Pending", "", ""], ["Navigation Flow", "CORE UI", "Pending", "", ""], ["Animations", "CORE UI", "Pending", "", ""], ["Flask Backend", "BACKEND", "Pending", "", ""], ["Google Sheets Integration", "BACKEND", "Pending", "", ""], ["Credentials Handling", "BACKEND", "Pending", "", ""], ["Logging System", "BACKEND", "Pending", "", ""], ["Email/Password Authentication", "AUTH", "Pending", "", ""], ["Login/Signup Flow", "AUTH", "Pending", "", ""], ["Session Handling", "AUTH", "Pending", "", ""], ["Build Request Form", "ORDERS", "Pending", "", ""], ["Build Type Selection", "ORDERS", "Pending", "", ""], ["Data Submission to Sheets", "ORDERS", "Pending", "", ""], ["Error Handling", "ORDERS", "Pending", "", ""], ["UPI Integration", "PAYMENT", "Pending", "", ""], ["Screenshot Upload", "PAYMENT", "Pending", "", ""], ["Image Handling", "PAYMENT", "Pending", "", ""], ["Payment UI", "PAYMENT", "Pending", "", ""], ["User Dashboard", "DASHBOARD", "Pending", "", ""], ["Order Tracking", "DASHBOARD", "Pending", "", ""], ["Status Display", "DASHBOARD", "Pending", "", ""], ["Admin Panel", "ADMIN", "Pending", "", ""], ["Order Update System", "ADMIN", "Pending", "", ""], ["Preview Link Feature", "ADMIN", "Pending", "", ""], ["Portfolio Page", "PAGES", "Pending", "", ""], ["Contact Page", "PAGES", "Pending", "", ""], ["Achievements Page", "PAGES", "Pending", "", ""], ["Upcoming Projects Page", "PAGES", "Pending", "", ""], ["Render Deployment", "DEPLOYMENT", "Pending", "", ""], ["Domain Setup", "DEPLOYMENT", "Pending", "", ""]])
+
     print("🚀 [READY] Google Sheets backend is fully configured and online.")
 
 # Initialize on startup
@@ -222,8 +228,9 @@ def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
 def log_admin_action(action, details):
-    if SHEET_CONNECTED and logs_sheet:
+    if SHEET_CONNECTED:
         try:
+            logs_sheet = get_logs_sheet()
             timestamp = datetime.utcnow().isoformat() + "Z"
             logs_sheet.append_row([action, details, timestamp])
         except Exception as e:
@@ -436,95 +443,68 @@ def submit_requirements():
         print(f"❌ [UPLOAD] Exception during file processing: {e}")
         return jsonify({"status": "error", "message": "File processing failed"}), 500
 
-    user_id = session.get('user_id')
+    user_id = session.get('user_id', 'anonymous')
     booking_id = generate_booking_id()
     current_time = datetime.utcnow().isoformat() + "Z"
 
-    # New Modualr Schema
-    order_data = [
-        booking_id,
-        user_id,
-        data.get('name', ''),
-        data.get('email', ''),
-        data.get('phone', ''),
-        data.get('projectType', ''),
-        data.get('plan', ''),
-        data.get('deliverySpeed', ''),
-        data.get('features', ''),
-        current_time,
-        current_time
-    ]
-
-    payment_data = [
-        booking_id,
-        data.get('total_price', '0'),
-        data.get('advance_paid', '0'),
-        data.get('remaining_amount', '0'),
-        "PENDING",
-        data.get('upi_ref_id', ''),
-        screenshot_url,
-        data.get('discount_amount', '0'),
-        data.get('final_price', '0'),
-        data.get('coupon_applied', '')
-    ]
-
-    preview_data = [
-        booking_id,
-        "",
-        "NOT_READY",
-        "NO",
-        ""
-    ]
-
-    status_data = [
-        booking_id,
-        "CREATED",
-        current_time
-    ]
-
     print(f"✅ [SUBMIT] Received payload from User ID: {user_id}")
-    if DEBUG_MODE:
-        print(f"📦 [DEBUG] Incoming request payload: {data}")
 
-    if SHEET_CONNECTED:
-        try:
-            print(f"⏳ [SHEETS] Writing booking {booking_id} to Google Sheets...")
-            # Check for uniqueness in ORDERS sheet
-            existing_records = orders_sheet.col_values(1)
-            while booking_id in existing_records:
-                print(f"⚠️ [COLLISION] Booking ID {booking_id} already exists. Regenerating...")
-                booking_id = generate_booking_id()
-                order_data[0] = booking_id
-                payment_data[0] = booking_id
-                preview_data[0] = booking_id
-                status_data[0] = booking_id
-
-            orders_sheet.append_row(order_data)
-            payments_sheet.append_row(payment_data)
-            preview_sheet.append_row(preview_data)
-            order_status_sheet.append_row(status_data)
-
-            print(f"✅ [SHEETS] Successfully wrote booking {booking_id} to all modular sheets.")
-            log_admin_action("ORDER_CREATED", f"User {user_id} created order {booking_id}")
-
-            return jsonify({
-                "status": "success",
-                "message": "Requirements submitted successfully.",
-                "booking_id": booking_id
-            })
-        except Exception as e:
-            print(f"❌ [SHEETS] Error writing booking {booking_id} to Google Sheets: {e}")
-            if DEBUG_MODE:
-                print(f"🐛 [DEBUG] Full Google Sheets exception: {repr(e)}")
-            return jsonify({"status": "error", "message": "Database error while saving request."}), 500
-    else:
+    if not SHEET_CONNECTED:
         print(f"❌ [FATAL] SHEET_CONNECTED is False. System dropped order {booking_id}.")
         return jsonify({"status": "error", "message": "Database connection is offline. Cannot process order."}), 500
+
+    try:
+        worksheet = get_orders_sheet()
+        if worksheet is None:
+            raise Exception("Worksheet is None - critical failure")
+
+        print("DEBUG: worksheet =", worksheet)
+        print("DEBUG: type =", type(worksheet))
+
+        # Check for uniqueness in ORDERS sheet
+        existing_records = worksheet.col_values(1)
+        while booking_id in existing_records:
+            booking_id = generate_booking_id()
+            print(f"⚠️ [COLLISION] Generated new ID: {booking_id}")
+
+        # 1. Order ID (UNIQUE PRIMARY KEY)
+        # 2. Name
+        # 3. Email
+        # 4. Build Type
+        # 5. Status
+        # 6. Preview Link
+        # 7. Payment Status
+        # 8. Notes
+        # 9. Timestamp
+
+        notes = f"Phone: {data.get('phone', '')} | Plan: {data.get('plan', '')} | Features: {data.get('features', '')} | UPI: {data.get('upi_ref_id', '')} | Screenshot: {screenshot_url}"
+
+        order_data = [
+            booking_id,
+            data.get('name', ''),
+            data.get('email', ''),
+            data.get('projectType', ''),
+            "Order Created",
+            "",
+            "Payment Pending",
+            notes,
+            current_time
+        ]
+
+        print(f"⏳ [SHEETS] Writing booking {booking_id} to Google Sheets...")
+        worksheet.append_row(order_data)
+        print(f"✅ [SHEETS] Successfully wrote {booking_id} to Google Sheets.")
+
+        return jsonify({"status": "success", "booking_id": booking_id, "message": "Project requirements submitted successfully!"})
+    except Exception as e:
+        print(f"❌ [SHEETS] Failed to write {booking_id} to Google Sheets: {e}")
+        return jsonify({"status": "error", "message": "Database error while saving your order. Please try again later."}), 500
 
 def get_google_sheet_records():
     if SHEET_CONNECTED:
         try:
-            records = orders_sheet.get_all_records()
+            worksheet = get_orders_sheet()
+            records = worksheet.get_all_records()
             if DEBUG_MODE:
                 print(f"📦 [DEBUG] Fetched {len(records)} records from Orders sheet.")
             return records
@@ -536,7 +516,11 @@ def get_google_sheet_records():
 
 @app.route('/api/banner', methods=['GET'])
 def api_banner():
-    if not SHEET_CONNECTED or not banner_sheet:
+    if not SHEET_CONNECTED:
+        return jsonify({"status": "error"})
+    try:
+        banner_sheet = get_banner_sheet()
+    except Exception:
         return jsonify({"status": "error"}), 500
     try:
         records = banner_sheet.get_all_records()
@@ -551,7 +535,11 @@ def api_banner():
 
 @app.route('/api/settings', methods=['GET'])
 def api_settings():
-    if not SHEET_CONNECTED or not settings_sheet:
+    if not SHEET_CONNECTED:
+        return jsonify({"status": "error"})
+    try:
+        settings_sheet = get_settings_sheet()
+    except Exception:
         return jsonify({"status": "error"}), 500
     try:
         records = settings_sheet.get_all_records()
@@ -666,11 +654,12 @@ def api_approve(booking_id):
 
     if SHEET_CONNECTED:
         try:
-            cell = orders_sheet.find(booking_id)
+            worksheet = get_orders_sheet()
+            cell = worksheet.find(booking_id)
             if cell:
                 row_idx = cell.row
-                row_data = orders_sheet.row_values(row_idx)
-                headers = orders_sheet.row_values(1)
+                row_data = worksheet.row_values(row_idx)
+                headers = worksheet.row_values(1)
 
                 user_id_col_idx = headers.index('user_id') + 1
                 status_col_idx = headers.index('status') + 1
@@ -678,9 +667,9 @@ def api_approve(booking_id):
                 last_updated_col_idx = headers.index('last_updated') + 1
 
                 if str(row_data[user_id_col_idx-1]) == str(user_id):
-                    orders_sheet.update_cell(row_idx, status_col_idx, 'APPROVED')
-                    orders_sheet.update_cell(row_idx, approved_col_idx, 'YES')
-                    orders_sheet.update_cell(row_idx, last_updated_col_idx, current_time)
+                    worksheet.update_cell(row_idx, status_col_idx, 'APPROVED')
+                    worksheet.update_cell(row_idx, approved_col_idx, 'YES')
+                    worksheet.update_cell(row_idx, last_updated_col_idx, current_time)
                     print(f"✅ [SHEETS] Successfully approved booking {booking_id} by User {user_id}.")
                     return jsonify({"status": "success", "message": "Project approved successfully."})
                 else:
@@ -757,6 +746,10 @@ def admin_update_banner():
     if not session.get('is_admin'):
         return jsonify({"status": "error"}), 403
     data = request.form
+    try:
+        banner_sheet = get_banner_sheet()
+    except Exception:
+        banner_sheet = None
     if not SHEET_CONNECTED or banner_sheet is None:
         print('❌ [ADMIN] Cannot update banner. Sheet disconnected.')
         return redirect(url_for('admin_dashboard'))
@@ -778,6 +771,10 @@ def admin_update_settings():
     if not session.get('is_admin'):
         return jsonify({"status": "error"}), 403
     data = request.form
+    try:
+        settings_sheet = get_settings_sheet()
+    except Exception:
+        settings_sheet = None
     if not SHEET_CONNECTED or settings_sheet is None:
         print('❌ [ADMIN] Cannot update settings. Sheet disconnected.')
         return redirect(url_for('admin_dashboard'))
@@ -800,6 +797,10 @@ def admin_add_coupon():
     if not session.get('is_admin'):
         return jsonify({"status": "error"}), 403
     data = request.form
+    try:
+        coupons_sheet = get_coupons_sheet()
+    except Exception:
+        coupons_sheet = None
     if not SHEET_CONNECTED or coupons_sheet is None:
         print('❌ [ADMIN] Cannot add coupon. Sheet disconnected.')
         return redirect(url_for('admin_dashboard'))
@@ -842,14 +843,15 @@ def api_admin_update_order():
 
     if SHEET_CONNECTED:
         try:
-            cell = orders_sheet.find(booking_id)
+            worksheet = get_orders_sheet()
+            cell = worksheet.find(booking_id)
             if cell:
                 row_idx = cell.row
-                headers = orders_sheet.row_values(1)
+                headers = worksheet.row_values(1)
 
                 for key, value in updates.items():
                     col_idx = headers.index(key) + 1
-                    orders_sheet.update_cell(row_idx, col_idx, value)
+                    worksheet.update_cell(row_idx, col_idx, value)
 
                 print(f"✅ [ADMIN] Updated order {booking_id}: {updates}")
                 return jsonify({"status": "success", "message": "Order updated successfully."})
@@ -860,6 +862,164 @@ def api_admin_update_order():
             return jsonify({"status": "error", "message": "Failed to update order."}), 500
     else:
         return jsonify({"status": "error", "message": "Database disconnected."}), 500
+
+def get_launch_tracker_sheet():
+    # If the sheet was already fetched during init
+    global launch_tracker_sheet, SHEET_CONNECTED
+
+    if launch_tracker_sheet is not None:
+        return launch_tracker_sheet
+
+    creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "") or os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
+
+    if not creds_json_str or not sheet_id:
+        return None
+
+    try:
+        import json
+        from google.oauth2.service_account import Credentials
+        import gspread
+
+        creds_dict = json.loads(creds_json_str)
+        scope = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+        client = gspread.authorize(creds)
+        spreadsheet = client.open_by_key(sheet_id)
+
+        try:
+            ws = spreadsheet.worksheet("LaunchTracker")
+        except gspread.exceptions.WorksheetNotFound:
+            ws = spreadsheet.add_worksheet(title="LaunchTracker", rows="1000", cols="20")
+
+            headers = ["Feature Name", "Category", "Status", "Notes", "Last Updated Timestamp"]
+            ws.insert_row(headers, 1)
+
+            default_launch_features = [
+                ["Homepage UI Design", "CORE UI", "Pending", "", ""],
+                ["Responsive Design", "CORE UI", "Pending", "", ""],
+                ["Navigation Flow", "CORE UI", "Pending", "", ""],
+                ["Animations", "CORE UI", "Pending", "", ""],
+                ["Flask Backend", "BACKEND", "Pending", "", ""],
+                ["Google Sheets Integration", "BACKEND", "Pending", "", ""],
+                ["Credentials Handling", "BACKEND", "Pending", "", ""],
+                ["Logging System", "BACKEND", "Pending", "", ""],
+                ["Email/Password Authentication", "AUTH", "Pending", "", ""],
+                ["Login/Signup Flow", "AUTH", "Pending", "", ""],
+                ["Session Handling", "AUTH", "Pending", "", ""],
+                ["Build Request Form", "ORDERS", "Pending", "", ""],
+                ["Build Type Selection", "ORDERS", "Pending", "", ""],
+                ["Data Submission to Sheets", "ORDERS", "Pending", "", ""],
+                ["Error Handling", "ORDERS", "Pending", "", ""],
+                ["UPI Integration", "PAYMENT", "Pending", "", ""],
+                ["Screenshot Upload", "PAYMENT", "Pending", "", ""],
+                ["Image Handling", "PAYMENT", "Pending", "", ""],
+                ["Payment UI", "PAYMENT", "Pending", "", ""],
+                ["User Dashboard", "DASHBOARD", "Pending", "", ""],
+                ["Order Tracking", "DASHBOARD", "Pending", "", ""],
+                ["Status Display", "DASHBOARD", "Pending", "", ""],
+                ["Admin Panel", "ADMIN", "Pending", "", ""],
+                ["Order Update System", "ADMIN", "Pending", "", ""],
+                ["Preview Link Feature", "ADMIN", "Pending", "", ""],
+                ["Portfolio Page", "PAGES", "Pending", "", ""],
+                ["Contact Page", "PAGES", "Pending", "", ""],
+                ["Achievements Page", "PAGES", "Pending", "", ""],
+                ["Upcoming Projects Page", "PAGES", "Pending", "", ""],
+                ["Render Deployment", "DEPLOYMENT", "Pending", "", ""],
+                ["Domain Setup", "DEPLOYMENT", "Pending", "", ""]
+            ]
+            for row in default_launch_features:
+                ws.append_row(row)
+
+        launch_tracker_sheet = ws
+        return ws
+    except Exception as e:
+        print(f"❌ [LAUNCH TRACKER] Init failed: {e}")
+        return None
+
+# --- LAUNCH TRACKER SYSTEM ---
+@app.route('/internal-dashboard-7843')
+def internal_dashboard():
+    try:
+        launch_tracker_sheet = get_launch_tracker_sheet()
+    except Exception:
+        launch_tracker_sheet = None
+    if not SHEET_CONNECTED or launch_tracker_sheet is None:
+        return "System Offline: Database is disconnected.", 500
+
+    try:
+        # Fetch all records
+        records = launch_tracker_sheet.get_all_records()
+
+        # Group by category
+        categories = {}
+        total_features = len(records)
+        working_count = 0
+
+        for record in records:
+            cat = record.get('Category', 'UNCATEGORIZED')
+            if cat not in categories:
+                categories[cat] = []
+            categories[cat].append(record)
+
+            if record.get('Status') == 'Working':
+                working_count += 1
+
+        progress = int((working_count / total_features * 100)) if total_features > 0 else 0
+
+        return render_template('internal_dashboard.html', categories=categories, progress=progress, total=total_features, working=working_count)
+    except Exception as e:
+        print(f"❌ [LAUNCH TRACKER] Error fetching data: {e}")
+        return f"System Error: {e}", 500
+
+@app.route('/api/internal/launch-tracker/update', methods=['POST'])
+def update_launch_tracker():
+    try:
+        launch_tracker_sheet = get_launch_tracker_sheet()
+    except Exception:
+        launch_tracker_sheet = None
+    if not SHEET_CONNECTED or launch_tracker_sheet is None:
+        return jsonify({"status": "error", "message": "Database disconnected"}), 500
+
+    data = request.json or {}
+    feature_name = data.get('feature_name')
+    status = data.get('status')
+    notes = data.get('notes')
+
+    if not feature_name:
+        return jsonify({"status": "error", "message": "Feature Name required"}), 400
+
+    try:
+        col_values = launch_tracker_sheet.col_values(1)
+        if feature_name in col_values:
+            row_idx = col_values.index(feature_name) + 1
+            headers = launch_tracker_sheet.row_values(1)
+
+            current_time = datetime.utcnow().isoformat() + "Z"
+
+            if 'Status' in headers and status is not None:
+                status_idx = headers.index('Status') + 1
+                launch_tracker_sheet.update_cell(row_idx, status_idx, status)
+
+            if 'Notes' in headers and notes is not None:
+                notes_idx = headers.index('Notes') + 1
+                launch_tracker_sheet.update_cell(row_idx, notes_idx, notes)
+
+            if 'Last Updated Timestamp' in headers:
+                time_idx = headers.index('Last Updated Timestamp') + 1
+                launch_tracker_sheet.update_cell(row_idx, time_idx, current_time)
+
+            print(f"✅ [LAUNCH TRACKER] Updated '{feature_name}' to '{status}'")
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"status": "error", "message": "Feature not found"}), 404
+
+    except Exception as e:
+        print(f"❌ [LAUNCH TRACKER] Update error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
