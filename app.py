@@ -227,6 +227,37 @@ except Exception as e:
 def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
+def get_orders_sheet():
+    global orders_sheet
+    if SHEET_CONNECTED and orders_sheet is not None:
+        return orders_sheet
+    raise Exception("Database disconnected or Orders sheet missing")
+
+def get_banner_sheet():
+    global banner_sheet
+    if SHEET_CONNECTED and banner_sheet is not None:
+        return banner_sheet
+    raise Exception("Database disconnected or Banner sheet missing")
+
+def get_settings_sheet():
+    global settings_sheet
+    if SHEET_CONNECTED and settings_sheet is not None:
+        return settings_sheet
+    raise Exception("Database disconnected or Settings sheet missing")
+
+def get_coupons_sheet():
+    global coupons_sheet
+    if SHEET_CONNECTED and coupons_sheet is not None:
+        return coupons_sheet
+    raise Exception("Database disconnected or Coupons sheet missing")
+
+def get_logs_sheet():
+    global logs_sheet
+    if SHEET_CONNECTED and logs_sheet is not None:
+        return logs_sheet
+    raise Exception("Database disconnected or Logs sheet missing")
+
+
 def log_admin_action(action, details):
     if SHEET_CONNECTED:
         try:
@@ -242,6 +273,16 @@ def require_login():
     protected_routes = ['/dashboard', '/requirements']
     if request.path in protected_routes and 'user_id' not in session:
         return redirect(url_for('login'))
+
+
+@app.route('/robots.txt')
+def static_from_root():
+    return "User-agent: *\nDisallow:", 200, {'Content-Type': 'text/plain'}
+
+@app.route('/favicon.ico')
+def favicon():
+    return "", 204
+
 
 @app.route('/')
 def index():
@@ -495,10 +536,10 @@ def submit_requirements():
         worksheet.append_row(order_data)
         print(f"✅ [SHEETS] Successfully wrote {booking_id} to Google Sheets.")
 
-        return jsonify({"status": "success", "booking_id": booking_id, "message": "Project requirements submitted successfully!"})
+        return jsonify({"status": "success", "success": True, "order_id": booking_id, "message": "Project requirements submitted successfully!"})
     except Exception as e:
         print(f"❌ [SHEETS] Failed to write {booking_id} to Google Sheets: {e}")
-        return jsonify({"status": "error", "message": "Database error while saving your order. Please try again later."}), 500
+        return jsonify({"status": "error", "success": False, "message": "Database error while saving your order. Please try again later."}), 500
 
 def get_google_sheet_records():
     if SHEET_CONNECTED:
@@ -516,35 +557,30 @@ def get_google_sheet_records():
 
 @app.route('/api/banner', methods=['GET'])
 def api_banner():
-    if not SHEET_CONNECTED:
-        return jsonify({"status": "error"})
+    fallback_banner = {"banner_text": "Welcome to Dorky Builds", "active": True}
     try:
         banner_sheet = get_banner_sheet()
-    except Exception:
-        return jsonify({"status": "error"}), 500
-    try:
         records = banner_sheet.get_all_records()
         if records:
-            # Assuming first row has the active banner
             banner = records[0]
             if str(banner.get('active', '')).upper() == 'TRUE':
                 return jsonify({"status": "success", "banner": banner})
     except Exception as e:
-        print(f"❌ [BANNER] Error: {e}")
-    return jsonify({"status": "success", "banner": None})
+        print(f"❌ [BANNER] Fallback used. Error: {e}")
+        return jsonify({"status": "success", "banner": fallback_banner})
+    return jsonify({"status": "success", "banner": fallback_banner})
 
 @app.route('/api/settings', methods=['GET'])
 def api_settings():
-    if not SHEET_CONNECTED:
-        return jsonify({"status": "error"})
+    fallback_settings = {"SITE_MODE": "LIVE", "MIN_ADVANCE": "10"}
     try:
         settings_sheet = get_settings_sheet()
-    except Exception:
-        return jsonify({"status": "error"}), 500
-    try:
         records = settings_sheet.get_all_records()
         settings_dict = {str(r.get('setting_name')).strip(): str(r.get('value')).strip() for r in records if r.get('setting_name')}
         return jsonify({"status": "success", "settings": settings_dict})
+    except Exception as e:
+        print(f"❌ [SETTINGS] Fallback used. Error: {e}")
+        return jsonify({"status": "success", "settings": fallback_settings})
     except Exception as e:
         print(f"❌ [SETTINGS] Error: {e}")
     return jsonify({"status": "error"}), 500
@@ -626,64 +662,71 @@ def api_orders():
     if 'user_id' not in session:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
 
-    user_id = session.get('user_id')
+    user_email = session.get('email') or session.get('user_email')
 
-    if not SHEET_CONNECTED:
-        return jsonify({"status": "error", "message": "Database is currently disconnected"}), 500
+    try:
+        orders = []
+        if user_email:
+            worksheet = get_orders_sheet()
+            headers = worksheet.row_values(1)
+            all_values = worksheet.get_all_values()
 
-    orders = []
-    records = get_google_sheet_records()
-    for r in records:
-        # Filter by user_id
-        if str(r.get('user_id')) == str(user_id):
-            orders.append(r)
+            if len(all_values) > 1:
+                for row in all_values[1:]:
+                    order_dict = {}
+                    for i, header in enumerate(headers):
+                        order_dict[header] = row[i] if i < len(row) else ""
 
-    return jsonify({"status": "success", "orders": orders})
+                    if str(order_dict.get('Email', '')).strip().lower() == str(user_email).strip().lower():
+                        orders.append(order_dict)
+
+        return jsonify({"status": "success", "orders": list(reversed(orders))})
+    except Exception as e:
+        print(f"❌ [ORDERS] Google Sheets fetch error: {e}")
+        return jsonify({"status": "error", "message": "Failed to fetch orders"}), 500
 
 @app.route('/api/approve/<booking_id>', methods=['POST'])
 def api_approve(booking_id):
     if 'user_id' not in session:
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
 
-    user_id = session.get('user_id')
+    user_email = session.get('email') or session.get('user_email')
 
     if not booking_id:
-        return jsonify({"status": "error", "message": "Booking ID required"}), 400
+        return jsonify({"status": "error", "message": "Order ID required"}), 400
 
     current_time = datetime.utcnow().isoformat() + "Z"
 
-    if SHEET_CONNECTED:
-        try:
-            worksheet = get_orders_sheet()
-            cell = worksheet.find(booking_id)
-            if cell:
-                row_idx = cell.row
-                row_data = worksheet.row_values(row_idx)
-                headers = worksheet.row_values(1)
+    try:
+        worksheet = get_orders_sheet()
+        col_values = worksheet.col_values(1)
+        if booking_id in col_values:
+            row_idx = col_values.index(booking_id) + 1
+            row_data = worksheet.row_values(row_idx)
+            headers = worksheet.row_values(1)
 
-                user_id_col_idx = headers.index('user_id') + 1
-                status_col_idx = headers.index('status') + 1
-                approved_col_idx = headers.index('approved') + 1
-                last_updated_col_idx = headers.index('last_updated') + 1
+            email_col_idx = headers.index('Email') + 1
+            status_col_idx = headers.index('Status') + 1
+            ts_col_idx = headers.index('Timestamp') + 1
 
-                if str(row_data[user_id_col_idx-1]) == str(user_id):
-                    worksheet.update_cell(row_idx, status_col_idx, 'APPROVED')
-                    worksheet.update_cell(row_idx, approved_col_idx, 'YES')
-                    worksheet.update_cell(row_idx, last_updated_col_idx, current_time)
-                    print(f"✅ [SHEETS] Successfully approved booking {booking_id} by User {user_id}.")
-                    return jsonify({"status": "success", "message": "Project approved successfully."})
-                else:
-                    print(f"❌ [AUTH] Unauthorized approval attempt on {booking_id} by {user_id}")
-                    return jsonify({"status": "error", "message": "Unauthorized"}), 403
+            # Verify ownership
+            stored_email = row_data[email_col_idx-1] if len(row_data) >= email_col_idx else ""
+
+            if str(stored_email).strip().lower() == str(user_email).strip().lower():
+                worksheet.update_cell(row_idx, status_col_idx, 'Completed')
+                worksheet.update_cell(row_idx, ts_col_idx, current_time)
+                print(f"✅ [SHEETS] Successfully approved order {booking_id} by {user_email}.")
+                return jsonify({"status": "success", "message": "Project approved successfully."})
             else:
-                return jsonify({"status": "error", "message": "Order not found"}), 404
-        except Exception as e:
-            print(f"❌ [SHEETS] Google Sheets approval error: {e}")
-            if DEBUG_MODE:
-                print(f"🐛 [DEBUG] Exception details: {repr(e)}")
-            return jsonify({"status": "error", "message": "Failed to approve project."}), 500
-    else:
-        return jsonify({"status": "error", "message": "Database disconnected."}), 500
+                print(f"❌ [AUTH] Unauthorized approval attempt on {booking_id} by {user_email}")
+                return jsonify({"status": "error", "message": "Unauthorized"}), 403
+        else:
+            return jsonify({"status": "error", "message": "Order not found"}), 404
+    except Exception as e:
+        print(f"❌ [SHEETS] Google Sheets approval error: {e}")
+        if DEBUG_MODE:
+            print(f"🐛 [DEBUG] Exception details: {repr(e)}")
+        return jsonify({"status": "error", "message": "Failed to approve project."}), 500
 
 # --- ADMIN AUTHENTICATION ---
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "dorkybuildsadmin")
