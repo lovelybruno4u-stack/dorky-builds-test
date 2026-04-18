@@ -6,11 +6,20 @@ import csv
 import uuid
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
-import gspread
 import time
-from google.oauth2.service_account import Credentials
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+
+from services.sheets_service import (
+    init_google_client, get_worksheet, get_orders_sheet, get_payments_sheet,
+    get_admin_logs_sheet, get_banner_sheet, get_settings_sheet, get_coupons_sheet,
+    get_launch_tracker_sheet, SHEET_CONNECTED
+)
+from utils.logger import log_api_hit, write_admin_log
+
+from routes.orders import orders_bp
+from routes.admin import admin_bp
+from routes.payments import payments_bp
 
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -21,208 +30,15 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB max upload size
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
+app.register_blueprint(orders_bp)
+app.register_blueprint(admin_bp)
+app.register_blueprint(payments_bp)
+
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 DEBUG_MODE = os.environ.get("DEBUG", "true").lower() == "true"
-
-SHEET_CONNECTED = False
-orders_sheet = None
-payments_sheet = None
-preview_sheet = None
-order_status_sheet = None
-users_sheet = None
-coupons_sheet = None
-banner_sheet = None
-settings_sheet = None
-logs_sheet = None
-launch_tracker_sheet = None
-
-def init_google_sheets():
-    global orders_sheet, users_sheet, coupons_sheet, banner_sheet, settings_sheet, logs_sheet, launch_tracker_sheet, SHEET_CONNECTED
-
-    creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "").strip()
-    sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
-
-    # 1. SHEET ID HARDENING & ENV VALIDATION
-    if not creds_json_str:
-        print("❌ [FATAL] GOOGLE_CREDS_JSON is missing. System will NOT save data to Google Sheets.")
-        SHEET_CONNECTED = False
-        return
-
-    if not sheet_id:
-        print("❌ [FATAL] GOOGLE_SHEET_ID is missing. System will NOT save data to Google Sheets.")
-        SHEET_CONNECTED = False
-        return
-
-    if len(sheet_id) < 20 or " " in sheet_id:
-        print(f"❌ [FATAL] Invalid GOOGLE_SHEET_ID format: {repr(sheet_id)}")
-        SHEET_CONNECTED = False
-        return
-
-    print(f"✅ [DEBUG] SHEET_ID format validated: {repr(sheet_id)}")
-
-    # 2. GOOGLE AUTH FIX
-    try:
-        import json
-        creds_dict = json.loads(creds_json_str)
-    except json.JSONDecodeError as e:
-        print(f"❌ [FATAL] GOOGLE_CREDS_JSON is not valid JSON: {e}")
-        SHEET_CONNECTED = False
-        return
-
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-
-    try:
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-        client = gspread.authorize(creds)
-        print("✅ [AUTH] Google Auth Service Account credentials verified successfully.")
-    except Exception as e:
-        print(f"❌ [FATAL] Google Auth failed. Check GOOGLE_CREDS_JSON permissions/format: {e}")
-        SHEET_CONNECTED = False
-        return
-
-    # 3. CONNECTION FLOW IMPROVEMENT (RETRY LOGIC & 404/403 HANDLING)
-    import time
-    max_retries = 3
-    spreadsheet = None
-
-    for attempt in range(1, max_retries + 1):
-        try:
-            print(f"⏳ [CONNECT] Attempting to open spreadsheet (Attempt {attempt}/{max_retries})...")
-            spreadsheet = client.open_by_key(sheet_id)
-            print("✅ [CONNECT] Spreadsheet opened successfully.")
-            break
-        except gspread.exceptions.APIError as e:
-            error_msg = str(e)
-            if "403" in error_msg or "PERMISSION_DENIED" in error_msg:
-                print(f"❌ [API_ERROR 403] Permission Denied or Google Sheets API disabled. Ensure the Google Sheets API is enabled in Google Cloud Console and the Service Account has Editor access.")
-                break # Non-recoverable without admin action
-            elif "404" in error_msg or "NOT_FOUND" in error_msg:
-                print(f"❌ [API_ERROR 404] Spreadsheet Not Found. The SHEET_ID is wrong, OR the Service Account ({creds_dict.get('client_email')}) has not been invited to edit the sheet.")
-                break # Non-recoverable without admin action
-            else:
-                print(f"⚠️ [API_ERROR] Unexpected API error: {e}")
-                time.sleep(2 ** attempt)
-        except Exception as e:
-            print(f"⚠️ [CONNECT] Failed to open spreadsheet on attempt {attempt}: {e}")
-            time.sleep(2 ** attempt)
-
-    if not spreadsheet:
-        print("❌ [FATAL] Failed to connect to spreadsheet after retries. Entering failsafe mode.")
-        SHEET_CONNECTED = False
-        return
-
-    # Helper function to get or create worksheets safely
-    def get_or_create_worksheet(title, rows="1000", cols="20"):
-        try:
-            return spreadsheet.worksheet(title)
-        except gspread.exceptions.WorksheetNotFound:
-            print(f"⏳ [WORKSHEET] '{title}' not found. Creating...")
-            if title == "Orders" and len(spreadsheet.worksheets()) == 1 and spreadsheet.sheet1.title != "Orders":
-                ws = spreadsheet.sheet1
-                ws.update_title("Orders")
-                return ws
-            return spreadsheet.add_worksheet(title=title, rows=rows, cols=cols)
-
-    try:
-        # 1. ARCHIVE OLD SYSTEM
-        try:
-            old_orders = spreadsheet.worksheet("Orders")
-            print("⏳ [ARCHIVE] Archiving old 'Orders' sheet to 'OLD_ORDERS_BACKUP'...")
-            old_orders.update_title("OLD_ORDERS_BACKUP")
-        except gspread.exceptions.WorksheetNotFound:
-            pass # No old orders sheet to archive
-
-        # 2. CREATE MODULAR SHEETS
-        orders_sheet = get_or_create_worksheet("ORDERS")
-        payments_sheet = get_or_create_worksheet("PAYMENTS")
-        preview_sheet = get_or_create_worksheet("PREVIEW")
-        order_status_sheet = get_or_create_worksheet("ORDER_STATUS")
-
-        users_sheet = get_or_create_worksheet("Users")
-        coupons_sheet = get_or_create_worksheet("Coupons")
-        banner_sheet = get_or_create_worksheet("Banner_Control")
-        settings_sheet = get_or_create_worksheet("Settings")
-        logs_sheet = get_or_create_worksheet("Admin_Logs")
-        launch_tracker_sheet = get_or_create_worksheet("LaunchTracker")
-    except Exception as e:
-        print(f"❌ [FATAL] Error configuring worksheets: {e}")
-        SHEET_CONNECTED = False
-        return
-
-    # 5. AUTO-CREATE HEADERS & DEFAULTS
-    SHEET_CONNECTED = True
-
-    def ensure_headers(ws, headers, default_data=None):
-        try:
-            existing = ws.row_values(1)
-            if existing != headers:
-                print(f"⚠️ [SHEETS] {ws.title} headers do not match. Fixing...")
-                ws.insert_row(headers, 1)
-                if default_data and len(ws.get_all_values()) <= 1:
-                    for row in default_data:
-                        ws.append_row(row)
-        except Exception as e:
-            print(f"⚠️ [SHEETS] {ws.title} empty. Initializing headers...")
-            ws.insert_row(headers, 1)
-            if default_data:
-                for row in default_data:
-                    ws.append_row(row)
-
-    ensure_headers(orders_sheet, ["Order ID", "Name", "Email", "Build Type", "Status", "Preview Link", "Payment Status", "Notes", "Timestamp"])
-
-    ensure_headers(payments_sheet, [
-        "booking_id", "total_price", "advance_paid", "remaining_amount",
-        "payment_status", "upi_ref_id", "screenshot_url",
-        "discount_amount", "final_price", "coupon_applied"
-    ])
-
-    ensure_headers(preview_sheet, [
-        "booking_id", "preview_link", "preview_status", "approved", "feedback"
-    ])
-
-    ensure_headers(order_status_sheet, [
-        "booking_id", "order_status", "last_updated"
-    ])
-
-    ensure_headers(users_sheet, ["uid", "name", "email", "password_hash", "created_at"])
-
-    ensure_headers(coupons_sheet, [
-        "coupon_code", "discount_type", "discount_value",
-        "min_order_value", "expiry_date", "active"
-    ], [["FIRST100", "flat", "100", "0", "2026-12-31", "TRUE"]])
-
-    ensure_headers(banner_sheet, [
-        "banner_text", "active", "duration_seconds", "background_color", "text_color"
-    ], [["🔥 Use code FIRST100 and get ₹100 OFF!", "TRUE", "30", "#000000", "#00FF41"]])
-
-    ensure_headers(settings_sheet, [
-        "setting_name", "value"
-    ], [
-        ["UPI_ID", "bina.patil@axl"],
-        ["MIN_ADVANCE", "10"],
-        ["MAX_ADVANCE_PERCENT", "100"],
-        ["SITE_MODE", "LIVE"]
-    ])
-
-    ensure_headers(logs_sheet, ["action", "details", "timestamp"])
-
-    ensure_headers(launch_tracker_sheet, [
-        "Feature Name", "Category", "Status", "Notes", "Last Updated Timestamp"
-    ], [["Homepage UI Design", "CORE UI", "Pending", "", ""], ["Responsive Design", "CORE UI", "Pending", "", ""], ["Navigation Flow", "CORE UI", "Pending", "", ""], ["Animations", "CORE UI", "Pending", "", ""], ["Flask Backend", "BACKEND", "Pending", "", ""], ["Google Sheets Integration", "BACKEND", "Pending", "", ""], ["Credentials Handling", "BACKEND", "Pending", "", ""], ["Logging System", "BACKEND", "Pending", "", ""], ["Email/Password Authentication", "AUTH", "Pending", "", ""], ["Login/Signup Flow", "AUTH", "Pending", "", ""], ["Session Handling", "AUTH", "Pending", "", ""], ["Build Request Form", "ORDERS", "Pending", "", ""], ["Build Type Selection", "ORDERS", "Pending", "", ""], ["Data Submission to Sheets", "ORDERS", "Pending", "", ""], ["Error Handling", "ORDERS", "Pending", "", ""], ["UPI Integration", "PAYMENT", "Pending", "", ""], ["Screenshot Upload", "PAYMENT", "Pending", "", ""], ["Image Handling", "PAYMENT", "Pending", "", ""], ["Payment UI", "PAYMENT", "Pending", "", ""], ["User Dashboard", "DASHBOARD", "Pending", "", ""], ["Order Tracking", "DASHBOARD", "Pending", "", ""], ["Status Display", "DASHBOARD", "Pending", "", ""], ["Admin Panel", "ADMIN", "Pending", "", ""], ["Order Update System", "ADMIN", "Pending", "", ""], ["Preview Link Feature", "ADMIN", "Pending", "", ""], ["Portfolio Page", "PAGES", "Pending", "", ""], ["Contact Page", "PAGES", "Pending", "", ""], ["Achievements Page", "PAGES", "Pending", "", ""], ["Upcoming Projects Page", "PAGES", "Pending", "", ""], ["Render Deployment", "DEPLOYMENT", "Pending", "", ""], ["Domain Setup", "DEPLOYMENT", "Pending", "", ""]])
-
-    print("🚀 [READY] Google Sheets backend is fully configured and online.")
-
-# Initialize on startup
-try:
-    init_google_sheets()
-except Exception as e:
-    print(f"❌ [CRITICAL] Unhandled exception during init_google_sheets: {e}")
-    SHEET_CONNECTED = False
 
 def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
@@ -438,109 +254,6 @@ def apply():
     data = request.form
     return jsonify({"status": "success", "message": "Application accepted. Evaluating credentials..."})
 
-@app.route('/submit-requirements', methods=['POST'])
-def submit_requirements():
-    if 'user_id' not in session:
-        # Mock session for testing
-        session['user_id'] = 'test-uid-123'
-        print("⚠️ [SUBMIT] Mocking session for testing purposes")
-
-    data = request.form
-
-    # Input validation
-    required_fields = ['name', 'email', 'projectType', 'plan', 'upi_ref_id']
-    for field in required_fields:
-        if not data.get(field):
-            print(f"❌ [VALIDATION] Missing required field: {field}")
-            return jsonify({"status": "error", "message": f"Missing required field: {field}"}), 400
-
-    # File upload handling
-    screenshot_url = ""
-    print(f"⏳ [UPLOAD] Processing file upload for user: {session.get('user_id')}")
-    try:
-        if 'screenshot' not in request.files:
-            print("❌ [UPLOAD] No 'screenshot' key in request.files")
-            return jsonify({"status": "error", "message": "Screenshot upload is required"}), 400
-
-        file = request.files['screenshot']
-        if file.filename == '':
-            print("❌ [UPLOAD] Empty filename received")
-            return jsonify({"status": "error", "message": "Screenshot file is empty"}), 400
-
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            unique_name = f"{int(time.time())}_{filename}"
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
-
-            print(f"⏳ [UPLOAD] Saving file to: {file_path}")
-            file.save(file_path)
-
-            screenshot_url = f"/static/uploads/{unique_name}"
-            print(f"✅ [UPLOAD] File saved successfully. URL: {screenshot_url}")
-        else:
-            print(f"❌ [UPLOAD] Invalid file type: {file.filename}")
-            return jsonify({"status": "error", "message": "Invalid file type. Only PNG, JPG, JPEG allowed."}), 400
-    except Exception as e:
-        print(f"❌ [UPLOAD] Exception during file processing: {e}")
-        return jsonify({"status": "error", "message": "File processing failed"}), 500
-
-    user_id = session.get('user_id', 'anonymous')
-    booking_id = generate_booking_id()
-    current_time = datetime.utcnow().isoformat() + "Z"
-
-    print(f"✅ [SUBMIT] Received payload from User ID: {user_id}")
-
-    if not SHEET_CONNECTED:
-        print(f"❌ [FATAL] SHEET_CONNECTED is False. System dropped order {booking_id}.")
-        return jsonify({"status": "error", "message": "Database connection is offline. Cannot process order."}), 500
-
-    try:
-        worksheet = get_orders_sheet()
-        if worksheet is None:
-            raise Exception("Worksheet is None - critical failure")
-
-        print("DEBUG: worksheet =", worksheet)
-        print("DEBUG: type =", type(worksheet))
-
-        # Check for uniqueness in ORDERS sheet
-        existing_records = worksheet.col_values(1)
-        while booking_id in existing_records:
-            booking_id = generate_booking_id()
-            print(f"⚠️ [COLLISION] Generated new ID: {booking_id}")
-
-        # 1. Order ID (UNIQUE PRIMARY KEY)
-        # 2. Name
-        # 3. Email
-        # 4. Build Type
-        # 5. Status
-        # 6. Preview Link
-        # 7. Payment Status
-        # 8. Notes
-        # 9. Timestamp
-
-        notes = f"Phone: {data.get('phone', '')} | Plan: {data.get('plan', '')} | Features: {data.get('features', '')} | UPI: {data.get('upi_ref_id', '')} | Screenshot: {screenshot_url}"
-
-        order_data = [
-            booking_id,
-            data.get('name', ''),
-            data.get('email', ''),
-            data.get('projectType', ''),
-            "Order Created",
-            "",
-            "Payment Pending",
-            notes,
-            current_time
-        ]
-
-        print(f"⏳ [SHEETS] Writing booking {booking_id} to Google Sheets...")
-        worksheet.append_row(order_data)
-        print(f"✅ [SHEETS] Successfully wrote {booking_id} to Google Sheets.")
-
-        return jsonify({"status": "success", "success": True, "order_id": booking_id, "message": "Project requirements submitted successfully!"})
-    except Exception as e:
-        print(f"❌ [SHEETS] Failed to write {booking_id} to Google Sheets: {e}")
-        return jsonify({"status": "error", "success": False, "message": "Database error while saving your order. Please try again later."}), 500
-
 def get_google_sheet_records():
     if SHEET_CONNECTED:
         try:
@@ -634,56 +347,7 @@ def validate_coupon():
         print(f"❌ [COUPON] Error: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
 
-@app.route('/api/track/<booking_id>', methods=['GET'])
-def api_track(booking_id):
-    booking_id = booking_id.strip().upper()
-    if not booking_id:
-        return jsonify({"status": "error", "message": "Booking ID required"}), 400
 
-    if not SHEET_CONNECTED:
-        return jsonify({"status": "error", "message": "Database is currently disconnected"}), 500
-
-    order = None
-    records = get_google_sheet_records()
-    for r in records:
-        # Normalize stored ID just in case
-        stored_id = str(r.get('booking_id', '')).strip().upper()
-        if stored_id == booking_id:
-            order = r
-            break
-
-    if order:
-        return jsonify({"status": "success", "order": order})
-    else:
-        return jsonify({"status": "error", "message": "INVALID BOOKING ID"}), 404
-
-@app.route('/api/orders', methods=['GET'])
-def api_orders():
-    if 'user_id' not in session:
-        return jsonify({"status": "error", "message": "Unauthorized"}), 401
-
-    user_email = session.get('email') or session.get('user_email')
-
-    try:
-        orders = []
-        if user_email:
-            worksheet = get_orders_sheet()
-            headers = worksheet.row_values(1)
-            all_values = worksheet.get_all_values()
-
-            if len(all_values) > 1:
-                for row in all_values[1:]:
-                    order_dict = {}
-                    for i, header in enumerate(headers):
-                        order_dict[header] = row[i] if i < len(row) else ""
-
-                    if str(order_dict.get('Email', '')).strip().lower() == str(user_email).strip().lower():
-                        orders.append(order_dict)
-
-        return jsonify({"status": "success", "orders": list(reversed(orders))})
-    except Exception as e:
-        print(f"❌ [ORDERS] Google Sheets fetch error: {e}")
-        return jsonify({"status": "error", "message": "Failed to fetch orders"}), 500
 
 @app.route('/api/approve/<booking_id>', methods=['POST'])
 def api_approve(booking_id):
@@ -861,127 +525,6 @@ def admin_add_coupon():
     except Exception as e:
         print(f"❌ [ADMIN] Coupon add failed: {e}")
         return redirect(url_for('admin_dashboard'))
-
-@app.route('/api/admin/update_order', methods=['POST'])
-def api_admin_update_order():
-    if not session.get('is_admin'):
-        return jsonify({"status": "error", "message": "Unauthorized"}), 403
-
-    data = request.json or {}
-    booking_id = data.get('booking_id')
-
-    if not booking_id:
-        return jsonify({"status": "error", "message": "Booking ID required"}), 400
-
-    updates = {}
-    if 'status' in data: updates['status'] = data['status']
-    if 'preview_link' in data: updates['preview_link'] = data['preview_link']
-    if 'payment_status' in data: updates['payment_status'] = data['payment_status']
-
-    if not updates:
-        return jsonify({"status": "error", "message": "No updates provided"}), 400
-
-    current_time = datetime.utcnow().isoformat() + "Z"
-    updates['last_updated'] = current_time
-
-    if SHEET_CONNECTED:
-        try:
-            worksheet = get_orders_sheet()
-            cell = worksheet.find(booking_id)
-            if cell:
-                row_idx = cell.row
-                headers = worksheet.row_values(1)
-
-                for key, value in updates.items():
-                    col_idx = headers.index(key) + 1
-                    worksheet.update_cell(row_idx, col_idx, value)
-
-                print(f"✅ [ADMIN] Updated order {booking_id}: {updates}")
-                return jsonify({"status": "success", "message": "Order updated successfully."})
-            else:
-                return jsonify({"status": "error", "message": "Order not found"}), 404
-        except Exception as e:
-            print(f"❌ [ADMIN] Google Sheets update error: {e}")
-            return jsonify({"status": "error", "message": "Failed to update order."}), 500
-    else:
-        return jsonify({"status": "error", "message": "Database disconnected."}), 500
-
-def get_launch_tracker_sheet():
-    # If the sheet was already fetched during init
-    global launch_tracker_sheet, SHEET_CONNECTED
-
-    if launch_tracker_sheet is not None:
-        return launch_tracker_sheet
-
-    creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "") or os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
-    sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
-
-    if not creds_json_str or not sheet_id:
-        return None
-
-    try:
-        import json
-        from google.oauth2.service_account import Credentials
-        import gspread
-
-        creds_dict = json.loads(creds_json_str)
-        scope = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-        client = gspread.authorize(creds)
-        spreadsheet = client.open_by_key(sheet_id)
-
-        try:
-            ws = spreadsheet.worksheet("LaunchTracker")
-        except gspread.exceptions.WorksheetNotFound:
-            ws = spreadsheet.add_worksheet(title="LaunchTracker", rows="1000", cols="20")
-
-            headers = ["Feature Name", "Category", "Status", "Notes", "Last Updated Timestamp"]
-            ws.insert_row(headers, 1)
-
-            default_launch_features = [
-                ["Homepage UI Design", "CORE UI", "Pending", "", ""],
-                ["Responsive Design", "CORE UI", "Pending", "", ""],
-                ["Navigation Flow", "CORE UI", "Pending", "", ""],
-                ["Animations", "CORE UI", "Pending", "", ""],
-                ["Flask Backend", "BACKEND", "Pending", "", ""],
-                ["Google Sheets Integration", "BACKEND", "Pending", "", ""],
-                ["Credentials Handling", "BACKEND", "Pending", "", ""],
-                ["Logging System", "BACKEND", "Pending", "", ""],
-                ["Email/Password Authentication", "AUTH", "Pending", "", ""],
-                ["Login/Signup Flow", "AUTH", "Pending", "", ""],
-                ["Session Handling", "AUTH", "Pending", "", ""],
-                ["Build Request Form", "ORDERS", "Pending", "", ""],
-                ["Build Type Selection", "ORDERS", "Pending", "", ""],
-                ["Data Submission to Sheets", "ORDERS", "Pending", "", ""],
-                ["Error Handling", "ORDERS", "Pending", "", ""],
-                ["UPI Integration", "PAYMENT", "Pending", "", ""],
-                ["Screenshot Upload", "PAYMENT", "Pending", "", ""],
-                ["Image Handling", "PAYMENT", "Pending", "", ""],
-                ["Payment UI", "PAYMENT", "Pending", "", ""],
-                ["User Dashboard", "DASHBOARD", "Pending", "", ""],
-                ["Order Tracking", "DASHBOARD", "Pending", "", ""],
-                ["Status Display", "DASHBOARD", "Pending", "", ""],
-                ["Admin Panel", "ADMIN", "Pending", "", ""],
-                ["Order Update System", "ADMIN", "Pending", "", ""],
-                ["Preview Link Feature", "ADMIN", "Pending", "", ""],
-                ["Portfolio Page", "PAGES", "Pending", "", ""],
-                ["Contact Page", "PAGES", "Pending", "", ""],
-                ["Achievements Page", "PAGES", "Pending", "", ""],
-                ["Upcoming Projects Page", "PAGES", "Pending", "", ""],
-                ["Render Deployment", "DEPLOYMENT", "Pending", "", ""],
-                ["Domain Setup", "DEPLOYMENT", "Pending", "", ""]
-            ]
-            for row in default_launch_features:
-                ws.append_row(row)
-
-        launch_tracker_sheet = ws
-        return ws
-    except Exception as e:
-        print(f"❌ [LAUNCH TRACKER] Init failed: {e}")
-        return None
 
 # --- LAUNCH TRACKER SYSTEM ---
 @app.route('/internal-dashboard-7843')

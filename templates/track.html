@@ -113,12 +113,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('track-loading').classList.remove('hidden');
 
             try {
-                const response = await fetch(`/api/track/${bookingId}`);
+                const response = await fetch(`/api/orders/track/${bookingId}`);
                 const data = await response.json();
 
                 document.getElementById('track-loading').classList.add('hidden');
 
-                if (data.status === 'success' && data.order) {
+                if (data.success && data.order) {
                     const order = data.order;
                     const status = order.status || order.Status || 'REQUESTED';
                     const paymentStatus = order.payment_status || order['Payment Status'] || 'PENDING';

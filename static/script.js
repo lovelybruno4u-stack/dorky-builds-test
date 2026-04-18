@@ -649,15 +649,15 @@ window.submitFinalOrder = async function() {
 
     try {
         console.log("📦 [FRONTEND] Transmitting payload and file to /submit-requirements...");
-        const response = await fetch('/submit-requirements', {
+        const response = await fetch('/api/orders/create', {
             method: 'POST',
             body: formData
         });
         const result = await response.json();
 
-        if (result.status === 'success') {
+        if (result.success) {
             if(window.showToast) window.showToast("Order submitted successfully.", "success");
-            document.getElementById('booking-id-display').innerText = result.booking_id;
+            document.getElementById('booking-id-display').innerText = result.order_id;
             goToStep(5);
         } else {
             if(window.showToast) window.showToast(result.message || "Upload or Database Error", "error");

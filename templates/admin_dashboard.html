@@ -273,27 +273,27 @@ async function updateOrder(btn) {
     btn.disabled = true;
 
     try {
-        const response = await fetch('/api/admin/update_order', {
+const response = await fetch('/api/admin/update', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                booking_id: bookingId,
-                order_status: orderStatus,
+                order_id: bookingId,
+                status: status,
                 payment_status: paymentStatus,
-                preview_status: previewStatus,
-                preview_link: previewLink
+                preview_link: previewLink,
+                notes: notes
             })
         });
 
         const result = await response.json();
-        if (result.status === 'success') {
+        if (result.success) {
             if(window.showToast) window.showToast('Record updated.', 'success');
             btn.innerHTML = 'OK';
             setTimeout(() => { btn.innerHTML = 'SAVE'; btn.disabled = false; window.location.reload(); }, 1500);
         } else {
-            if(window.showToast) window.showToast('Error updating record.', 'error');
+            if(window.showToast) window.showToast(result.error || 'Error updating record.', 'error');
             btn.innerHTML = 'ERR';
             btn.classList.replace('bg-red-500', 'bg-red-700');
             setTimeout(() => { btn.innerHTML = 'SAVE'; btn.disabled = false; btn.classList.replace('bg-red-700', 'bg-red-500'); }, 2000);
