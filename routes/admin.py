@@ -30,47 +30,40 @@ def admin_update():
         row_idx = col_values.index(order_id) + 1
         headers = ws.row_values(1)
 
-        # Get current row to recalculate values
-        row_data = ws.row_values(row_idx)
-        order_dict = {}
-        for i, h in enumerate(headers):
-            order_dict[h] = row_data[i] if i < len(row_data) else ""
-
         updates = []
-        for field in ['status', 'preview_link', 'notes', 'advance_paid']:
-            if field in data:
-                val = data[field]
+        # Strictly available fields in the new 7-column schema: Status, Payment Status
+        # We'll map the frontend payload keys to exact header keys
+        field_map = {
+            'status': 'Status',
+            'payment_status': 'Payment Status',
+            'preview_link': 'Preview Link',
+            'notes': 'Notes'
+        }
+
+        for req_field, sheet_header in field_map.items():
+            if req_field in data:
+                val = data[req_field]
                 try:
-                    col_idx = headers.index(field) + 1
+                    col_idx = headers.index(sheet_header) + 1
                     ws.update_cell(row_idx, col_idx, val)
-                    order_dict[field] = val
-                    updates.append(field)
+                    updates.append(req_field)
                 except ValueError:
-                    print(f"⚠️ [ADMIN] Column {field} not found")
-
-        # Recalculate remaining amount
-        try:
-            total_price = float(str(order_dict.get('total_price', '0')).replace(',', ''))
-            advance_paid = float(str(order_dict.get('advance_paid', '0')).replace(',', ''))
-            remaining_amount = total_price - advance_paid
-
-            rem_col_idx = headers.index('remaining_amount') + 1
-            ws.update_cell(row_idx, rem_col_idx, remaining_amount)
-            updates.append('remaining_amount')
-        except ValueError:
-            print("⚠️ [ADMIN] Could not recalculate remaining amount")
+                    print(f"⚠️ [ADMIN] Column {sheet_header} not found")
 
         if updates:
-            # Update updated_at timestamp
+            # Update Timestamp
             current_time = datetime.utcnow().isoformat() + "Z"
-            ts_col_idx = headers.index('updated_at') + 1
-            ws.update_cell(row_idx, ts_col_idx, current_time)
+            try:
+                ts_col_idx = headers.index('Timestamp') + 1
+                ws.update_cell(row_idx, ts_col_idx, current_time)
+            except ValueError:
+                pass
 
             write_admin_log("UPDATE_ORDER", request.path, data, {"success": True, "updated": updates})
             print(f"✅ [ADMIN] Updated {order_id}: {updates}")
             return jsonify({"success": True})
         else:
-            return jsonify({"success": False, "error": "No valid fields to update"}), 400
+            return jsonify({"success": False, "error": "No valid fields to update based on strict schema"}), 400
 
     except Exception as e:
         print(f"❌ [ADMIN ERROR]: {e}")

@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     document.getElementById('track-form').dispatchEvent(new Event('submit'));
                 }, 1000);
-            } else {
+} else {
                 if(window.showToast) window.showToast(result.message || "Failed to approve project.", "error");
                 btnElement.disabled = false;
                 btnElement.innerHTML = originalText;
@@ -270,13 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
             btnElement.disabled = false;
             btnElement.innerHTML = originalText;
         }
-    } catch (err) {
-            console.error(err);
-            showToast("Error processing approval.", "error");
-            btnElement.disabled = false;
-            btnElement.innerHTML = originalText;
-        }
-    }
+    };
 });
 </script>
 {% endblock %}

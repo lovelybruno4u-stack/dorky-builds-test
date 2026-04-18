@@ -59,21 +59,15 @@ def create_order():
     try:
         ws = get_orders_sheet()
 
-        # Schema: order_id, name, email, phone, build_type, plan, status, preview_link, total_price, advance_paid, remaining_amount, notes, created_at, updated_at
         order_data = [
             order_id,
             data.get('name', ''),
             data.get('email', ''),
-            data.get('phone', ''),
             build_type,
-            data.get('plan', ''),
-            "NEW",
+            "Order Created",
+            "Payment Pending",
             "",
-            total_price,
-            advance_paid,
-            remaining_amount,
             notes,
-            current_time,
             current_time
         ]
 

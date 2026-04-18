@@ -11,9 +11,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from services.sheets_service import (
-    init_google_client, get_worksheet, get_orders_sheet, get_payments_sheet,
+    init_google_client, get_orders_sheet, get_payments_sheet,
     get_admin_logs_sheet, get_banner_sheet, get_settings_sheet, get_coupons_sheet,
-    get_launch_tracker_sheet, SHEET_CONNECTED
+    get_launch_tracker_sheet, SHEET_CONNECTED, get_users_sheet
 )
 from utils.logger import log_api_hit, write_admin_log
 
@@ -149,43 +149,40 @@ def signup():
         password = request.form.get('password', '')
 
         if not name or not email or not password:
-            print(f"❌ [SIGNUP] Missing required fields for {email}")
             return render_template('signup.html', error="All fields are required")
 
-        if not SHEET_CONNECTED:
-            print("⚠️ [SIGNUP] Database offline. Mocking login for UI debug.")
-            import uuid
-            session['user_id'] = str(uuid.uuid4())
-            session['email'] = email
-            session['name'] = name
-            return redirect(url_for('requirements'))
-
         try:
+            users_sheet = get_users_sheet()
+
             # Check if email exists
             records = users_sheet.get_all_records()
             for r in records:
-                if r.get('email', '').lower() == email:
-                    print(f"❌ [SIGNUP] Registration failed: Email {email} already exists.")
-                    return render_template('signup.html', error="Email is already registered.")
+                if str(r.get('email', '')).strip().lower() == email:
+                    print(f"❌ [SIGNUP] Email {email} already exists")
+                    return render_template('signup.html', error="Email is already registered")
 
+            # Create user
             uid = str(uuid.uuid4())
             password_hash = generate_password_hash(password)
             current_time = datetime.utcnow().isoformat() + "Z"
 
             users_sheet.append_row([uid, name, email, password_hash, current_time])
-            print(f"✅ [SIGNUP] User registered successfully: {email} (UID: {uid})")
+            print(f"✅ [SIGNUP] New user registered: {email} ({uid})")
 
             # Auto-login
             session['user_id'] = uid
             session['email'] = email
             session['name'] = name
-            print(f"✅ [SESSION] Session created for {email}")
+
+            # If there's an active booking request in progress
+            if session.get('temp_booking_data'):
+                return redirect(url_for('requirements'))
 
             return redirect(url_for('dashboard'))
 
         except Exception as e:
-            print(f"❌ [SIGNUP] Error saving user to database: {e}")
-            return render_template('signup.html', error="Internal server error during registration.")
+            print(f"❌ [SIGNUP] Google Sheets error: {e}")
+            return render_template('signup.html', error="An internal error occurred. Please try again.")
 
     return render_template('signup.html')
 
@@ -202,36 +199,36 @@ def login():
             print(f"❌ [LOGIN] Missing credentials for {email}")
             return render_template('login.html', error="Email and password required")
 
-        if not SHEET_CONNECTED:
-            print("❌ [LOGIN] Database offline. Cannot authenticate.")
-            return render_template('login.html', error="Database is currently disconnected.")
-
         try:
             print(f"⏳ [LOGIN] Attempting login for {email}")
+            users_sheet = get_users_sheet()
             records = users_sheet.get_all_records()
             user_found = False
 
             for r in records:
-                if r.get('email', '').lower() == email:
+                stored_email = str(r.get('email', '')).strip().lower()
+                if stored_email == email:
                     user_found = True
-                    stored_hash = r.get('password_hash')
-                    if check_password_hash(stored_hash, password):
-                        session['user_id'] = str(r.get('uid'))
+                    if check_password_hash(str(r.get('password_hash', '')), password):
+                        print(f"✅ [LOGIN] Successful for {email}")
+                        session['user_id'] = str(r.get('uid', ''))
                         session['email'] = email
-                        session['name'] = r.get('name', '')
-                        print(f"✅ [LOGIN] Success for {email} (UID: {session['user_id']})")
+                        session['name'] = str(r.get('name', ''))
+
+                        if session.get('temp_booking_data'):
+                            return redirect(url_for('requirements'))
                         return redirect(url_for('dashboard'))
                     else:
                         print(f"❌ [LOGIN] Invalid password for {email}")
-                        return render_template('login.html', error="Invalid email or password")
+                        return render_template('login.html', error="Invalid password")
 
             if not user_found:
-                print(f"❌ [LOGIN] Email not found: {email}")
-                return render_template('login.html', error="Invalid email or password")
+                print(f"❌ [LOGIN] User not found: {email}")
+                return render_template('login.html', error="User not found. Please sign up.")
 
         except Exception as e:
-            print(f"❌ [LOGIN] Error during authentication: {e}")
-            return render_template('login.html', error="Internal server error during login.")
+            print(f"❌ [LOGIN] Sheets error: {e}")
+            return render_template('login.html', error="An internal error occurred. Please try again.")
 
     return render_template('login.html')
 
@@ -270,14 +267,14 @@ def get_google_sheet_records():
 
 @app.route('/api/banner', methods=['GET'])
 def api_banner():
-    fallback_banner = {"banner_text": "Welcome to Dorky Builds", "active": True}
+    fallback_banner = {"text": "Welcome to Dorky Builds", "active": True}
     try:
         banner_sheet = get_banner_sheet()
         records = banner_sheet.get_all_records()
         if records:
             banner = records[0]
             if str(banner.get('active', '')).upper() == 'TRUE':
-                return jsonify({"status": "success", "banner": banner})
+                return jsonify({"status": "success", "banner": {"banner_text": banner.get('text', ''), "active": True}})
     except Exception as e:
         print(f"❌ [BANNER] Fallback used. Error: {e}")
         return jsonify({"status": "success", "banner": fallback_banner})
