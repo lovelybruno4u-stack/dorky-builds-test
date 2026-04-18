@@ -17,39 +17,62 @@ def generate_order_id():
 def create_order():
     log_api_hit()
 
-    # Can handle both form-data (for screenshot) and JSON depending on frontend implementation
     data = request.form if request.form else request.json or {}
 
-    required_fields = ['name', 'email', 'build_type', 'plan', 'total_price']
-    for field in required_fields:
-        if not data.get(field):
-            print(f"❌ [VALIDATION] Missing: {field}")
-            return jsonify({"success": False, "error": f"Missing field: {field}"}), 400
+    # Map frontend payload
+    build_type = data.get('build_type') or data.get('projectType')
+
+    if not data.get('name') or not data.get('email') or not build_type or not data.get('plan') or not data.get('total_price'):
+        print(f"❌ [VALIDATION] Missing fields in payload")
+        return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+    # Handle Screenshot Upload if provided
+    screenshot_url = ""
+    try:
+        if 'screenshot' in request.files:
+            file = request.files['screenshot']
+            if file and file.filename != '':
+                filename = secure_filename(file.filename)
+                unique_name = f"{int(time.time())}_{filename}"
+                # Must reference the app config upload folder
+                upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
+                file_path = os.path.join(upload_folder, unique_name)
+                file.save(file_path)
+                screenshot_url = f"/static/uploads/{unique_name}"
+                print(f"✅ [UPLOAD] Saved: {screenshot_url}")
+    except Exception as e:
+        print(f"❌ [UPLOAD] Exception during file processing: {e}")
+        return jsonify({"success": False, "error": "File processing failed"}), 500
 
     order_id = generate_order_id()
     current_time = datetime.utcnow().isoformat() + "Z"
 
     total_price = str(data.get('total_price', '0')).replace(',', '')
-    advance_paid = "0"
-    remaining_amount = total_price
+    advance_paid = str(data.get('advance_paid', '0')).replace(',', '')
+    try:
+        remaining_amount = str(float(total_price) - float(advance_paid))
+    except ValueError:
+        remaining_amount = total_price
+
+    notes = f"Features: {data.get('features', '')} | UPI: {data.get('upi_ref_id', '')} | Screenshot: {screenshot_url}"
 
     try:
         ws = get_orders_sheet()
 
-        # order_id, name, email, phone, build_type, plan, status, preview_link, total_price, advance_paid, remaining_amount, notes, created_at, updated_at
+        # Schema: order_id, name, email, phone, build_type, plan, status, preview_link, total_price, advance_paid, remaining_amount, notes, created_at, updated_at
         order_data = [
             order_id,
             data.get('name', ''),
             data.get('email', ''),
             data.get('phone', ''),
-            data.get('build_type', ''),
+            build_type,
             data.get('plan', ''),
             "NEW",
             "",
             total_price,
             advance_paid,
             remaining_amount,
-            data.get('notes', ''),
+            notes,
             current_time,
             current_time
         ]

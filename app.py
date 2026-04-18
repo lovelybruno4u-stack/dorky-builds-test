@@ -294,9 +294,6 @@ def api_settings():
     except Exception as e:
         print(f"❌ [SETTINGS] Fallback used. Error: {e}")
         return jsonify({"status": "success", "settings": fallback_settings})
-    except Exception as e:
-        print(f"❌ [SETTINGS] Error: {e}")
-    return jsonify({"status": "error"}), 500
 
 @app.route('/api/validate_coupon', methods=['POST'])
 def validate_coupon():
@@ -429,17 +426,20 @@ def admin_dashboard():
 
     if SHEET_CONNECTED:
         try:
+            orders_sheet = get_orders_sheet()
             records = orders_sheet.get_all_records()
             orders = list(reversed(records))
 
+            coupons_sheet = get_coupons_sheet()
             coupons = coupons_sheet.get_all_records()
 
+            banner_sheet = get_banner_sheet()
             banners = banner_sheet.get_all_records()
             if banners:
                 banner = banners[0]
-                # Normalize 'active' to boolean for template logic
                 banner['active'] = str(banner.get('active', '')).upper() == 'TRUE'
 
+            settings_sheet = get_settings_sheet()
             sett = settings_sheet.get_all_records()
             settings = {str(r.get('setting_name')).strip(): str(r.get('value')).strip() for r in sett if r.get('setting_name')}
         except Exception as e:
