@@ -77,6 +77,7 @@ def init_google_client():
         logs_sheet = _enforce_worksheet("logs", ["time", "event"])
         contacts_sheet = _enforce_worksheet("contacts", ["name", "email", "message"])
         projects_sheet = _enforce_worksheet("projects", ["title", "description", "status"])
+        payments_sheet = _enforce_worksheet("payments", ["payment_id", "order_id", "amount", "type", "status", "timestamp"])
 
         # Keep previously strictly requested core components to ensure existing routes don't break entirely if expected
         orders_sheet = _enforce_worksheet("Orders", ["Order ID", "Name", "Email", "Build Type", "Status", "Payment Status", "Timestamp"])
@@ -136,7 +137,10 @@ def get_coupons_sheet():
 def get_settings_sheet():
     raise Exception("Settings sheet dropped from strict schema")
 def get_payments_sheet():
-    raise Exception("Payments sheet dropped from strict schema")
+    global payments_sheet
+    if SHEET_CONNECTED and payments_sheet is not None:
+        return payments_sheet
+    raise Exception("Database disconnected or Payments sheet missing")
 def get_launch_tracker_sheet():
     raise Exception("Launch Tracker sheet dropped from strict schema")
 def get_admin_logs_sheet():

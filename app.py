@@ -15,7 +15,7 @@ from services.sheets_service import (
     get_admin_logs_sheet, get_banner_sheet, get_settings_sheet, get_coupons_sheet,
     get_launch_tracker_sheet, SHEET_CONNECTED, get_users_sheet
 )
-from utils.logger import log_api_hit, write_admin_log
+from utils.logger import log_api_hit, write_admin_log, write_submission_log
 
 from routes.orders import orders_bp
 from routes.admin import admin_bp
@@ -166,8 +166,15 @@ def signup():
             password_hash = generate_password_hash(password)
             current_time = datetime.utcnow().isoformat() + "Z"
 
+
             users_sheet.append_row([uid, name, email, password_hash])
             print(f"✅ [SIGNUP] New user registered: {email} ({uid})")
+
+            try:
+                write_submission_log("Signup", email, f"User ID: {uid}")
+            except Exception:
+                pass
+
 
             # Auto-login
             session['user_id'] = uid
@@ -210,8 +217,15 @@ def login():
                 if stored_email == email:
                     user_found = True
                     if check_password_hash(str(r.get('password', '')), password):
+
                         print(f"✅ [LOGIN] Successful for {email}")
                         session['user_id'] = str(r.get('id', ''))
+
+                        try:
+                            write_submission_log("Login", email, f"User ID: {session['user_id']}")
+                        except Exception:
+                            pass
+
                         session['email'] = email
                         session['name'] = str(r.get('name', ''))
 
@@ -244,11 +258,36 @@ def logout():
 @app.route('/contact-submit', methods=['POST'])
 def contact_submit():
     data = request.form
+    name = data.get('name', 'Unknown')
+    email = data.get('email', 'Unknown')
+    message = data.get('message', 'No message')
+
+    try:
+        from services.sheets_service import get_contacts_sheet
+        contacts_sheet = get_contacts_sheet()
+        contacts_sheet.append_row([name, email, message])
+
+        from utils.logger import write_submission_log
+        write_submission_log("Contact", email, f"Name: {name} | Msg length: {len(message)}")
+    except Exception as e:
+        print(f"❌ [CONTACT] Failed to save contact submission: {e}")
+        # Not failing the frontend if the sheet write fails, but we logged it
+
     return jsonify({"status": "success", "message": "Message received. Initiating response protocol..."})
 
 @app.route('/apply', methods=['POST'])
 def apply():
     data = request.form
+    name = data.get('name', 'Unknown')
+    email = data.get('email', 'Unknown')
+    role = data.get('role', 'Unknown Role')
+
+    try:
+        from utils.logger import write_submission_log
+        write_submission_log("Career Application", email, f"Name: {name} | Role: {role}")
+    except Exception as e:
+        print(f"❌ [APPLY] Failed to log application: {e}")
+
     return jsonify({"status": "success", "message": "Application accepted. Evaluating credentials..."})
 
 def get_google_sheet_records():
