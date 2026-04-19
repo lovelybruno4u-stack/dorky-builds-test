@@ -11,16 +11,14 @@ def log_api_hit():
 
 def write_admin_log(action, endpoint, payload, response):
     try:
-        from services.sheets_service import get_admin_logs_sheet
-        ws = get_admin_logs_sheet()
+        from services.sheets_service import get_logs_sheet
+        ws = get_logs_sheet()
         if ws:
             timestamp = datetime.utcnow().isoformat() + "Z"
+            event_details = f"Action: {action} | Endpoint: {endpoint} | Payload: {payload} | Response: {response}"
             ws.append_row([
-                action,
-                endpoint,
-                json.dumps(payload) if isinstance(payload, dict) else str(payload),
-                json.dumps(response) if isinstance(response, dict) else str(response),
-                timestamp
+                timestamp,
+                event_details
             ])
     except Exception as e:
         print(f"❌ [LOGGER] Failed to write admin log: {e}")

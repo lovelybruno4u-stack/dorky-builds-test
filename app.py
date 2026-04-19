@@ -166,7 +166,7 @@ def signup():
             password_hash = generate_password_hash(password)
             current_time = datetime.utcnow().isoformat() + "Z"
 
-            users_sheet.append_row([uid, name, email, password_hash, current_time])
+            users_sheet.append_row([uid, name, email, password_hash])
             print(f"✅ [SIGNUP] New user registered: {email} ({uid})")
 
             # Auto-login
@@ -209,9 +209,9 @@ def login():
                 stored_email = str(r.get('email', '')).strip().lower()
                 if stored_email == email:
                     user_found = True
-                    if check_password_hash(str(r.get('password_hash', '')), password):
+                    if check_password_hash(str(r.get('password', '')), password):
                         print(f"✅ [LOGIN] Successful for {email}")
-                        session['user_id'] = str(r.get('uid', ''))
+                        session['user_id'] = str(r.get('id', ''))
                         session['email'] = email
                         session['name'] = str(r.get('name', ''))
 
