@@ -434,11 +434,31 @@ def admin_login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-            session['is_admin'] = True
-            return redirect(url_for('admin_dashboard'))
-        else:
-            return render_template('admin_login.html', error="Invalid credentials")
+
+        try:
+            from services.sheets_service import get_admin_sheet
+            ws = get_admin_sheet()
+            records = ws.get_all_records()
+            auth_success = False
+            for r in records:
+                if str(r.get('username')) == username and str(r.get('password')) == password:
+                    auth_success = True
+                    break
+
+            if auth_success:
+                session['is_admin'] = True
+                try:
+                    write_submission_log("Admin Login", username, "SUCCESS")
+                except Exception: pass
+                return redirect(url_for('admin_dashboard'))
+            else:
+                try:
+                    write_submission_log("Admin Login", username, "FAILURE: Invalid credentials")
+                except Exception: pass
+                return render_template('admin_login.html', error="Invalid credentials")
+        except Exception as e:
+            print(f"❌ [ADMIN] Auth fetch error: {e}")
+            return render_template('admin_login.html', error="Database error occurred during authentication.")
 
     if session.get('is_admin'):
         return redirect(url_for('admin_dashboard'))
@@ -455,33 +475,42 @@ def admin_dashboard():
     if not session.get('is_admin'):
         return redirect(url_for('admin_login'))
 
-    orders = []
-    coupons = []
+    projects = []
+    users = []
+    payments = []
     banner = {}
-    settings = {}
 
     if SHEET_CONNECTED:
         try:
-            orders_sheet = get_orders_sheet()
-            records = orders_sheet.get_all_records()
-            orders = list(reversed(records))
+            projects_sheet = get_orders_sheet() # Maps to projects
+            p_records = projects_sheet.get_all_records()
+            projects = list(reversed(p_records))
 
-            coupons_sheet = get_coupons_sheet()
-            coupons = coupons_sheet.get_all_records()
+            try:
+                users_sheet = get_users_sheet()
+                users = users_sheet.get_all_records()
+            except Exception as e:
+                print(f"⚠️ [ADMIN] Users fetch error: {e}")
 
-            banner_sheet = get_banner_sheet()
-            banners = banner_sheet.get_all_records()
-            if banners:
-                banner = banners[0]
-                banner['active'] = str(banner.get('active', '')).upper() == 'TRUE'
+            try:
+                payments_sheet = get_payments_sheet()
+                payments = payments_sheet.get_all_records()
+            except Exception as e:
+                print(f"⚠️ [ADMIN] Payments fetch error: {e}")
 
-            settings_sheet = get_settings_sheet()
-            sett = settings_sheet.get_all_records()
-            settings = {str(r.get('setting_name')).strip(): str(r.get('value')).strip() for r in sett if r.get('setting_name')}
+            try:
+                banner_sheet = get_banner_sheet()
+                banners = banner_sheet.get_all_records()
+                if banners:
+                    banner = banners[0]
+                    banner['active'] = str(banner.get('active', '')).upper() == 'TRUE'
+            except Exception:
+                pass
+
         except Exception as e:
-            print(f"❌ [ADMIN] Dashboard data fetch error: {e}")
+            print(f"❌ [ADMIN] Dashboard critical data fetch error: {e}")
 
-    return render_template('admin_dashboard.html', orders=orders, coupons=coupons, banner=banner, settings=settings)
+    return render_template('admin_dashboard.html', orders=projects, users=users, payments=payments, banner=banner)
 
 
 @app.route('/admin/update_banner', methods=['POST'])

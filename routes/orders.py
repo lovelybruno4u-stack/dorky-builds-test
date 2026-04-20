@@ -54,25 +54,29 @@ def create_order():
     except ValueError:
         remaining_amount = total_price
 
-    notes = f"Features: {data.get('features', '')} | UPI: {data.get('upi_ref_id', '')} | Screenshot: {screenshot_url}"
+user_id = session.get('user_id', 'anonymous')
+    notes = f"Name: {data.get('name', '')} | Email: {data.get('email', '')} | Phone: {data.get('phone', '')} | Plan: {data.get('plan', '')} | Features: {data.get('features', '')} | UPI: {data.get('upi_ref_id', '')} | Screenshot: {screenshot_url}"
 
     try:
-        ws = get_orders_sheet()
+        ws = get_orders_sheet() # Maps to projects
 
         order_data = [
             order_id,
-            data.get('name', ''),
-            data.get('email', ''),
+            user_id,
             build_type,
+            "New project submission via form",
             "Order Created",
-            "Payment Pending",
+            "unpaid",
+            total_price,
+            advance_paid,
+            remaining_amount,
             "",
             notes,
             current_time
         ]
 
         ws.append_row(order_data)
-        print(f"✅ [ORDERS] Order {order_id} created successfully.")
+        print(f"✅ [ORDERS] Order {order_id} created successfully for user {user_id}.")
 
         return jsonify({"success": True, "order_id": order_id})
 
@@ -84,10 +88,10 @@ def create_order():
 def get_orders():
     log_api_hit()
 
-    user_email = session.get('email') or session.get('user_email')
+    user_id = session.get('user_id')
     is_admin = session.get('is_admin')
 
-    if not user_email and not is_admin:
+    if not user_id and not is_admin:
         return jsonify({"success": False, "error": "Unauthorized"}), 401
 
     try:
@@ -96,7 +100,7 @@ def get_orders():
 
         orders = []
         for r in records:
-            if is_admin or str(r.get('email', '')).strip().lower() == str(user_email).strip().lower():
+            if is_admin or str(r.get('user_id', '')).strip() == str(user_id).strip():
                 orders.append(r)
 
         return jsonify({"success": True, "orders": list(reversed(orders))})

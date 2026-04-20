@@ -13,17 +13,17 @@
         </a>
     </div>
 
-    <!-- Admin Tabs -->
+<!-- Admin Tabs -->
     <div class="flex gap-2 text-sm overflow-x-auto pb-4 mb-8 font-mono">
-        <button class="admin-tab-btn active bg-red-500 text-black px-4 py-2 font-bold border-2 border-red-500" data-tab="orders">> ORDERS</button>
-        <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="coupons">> COUPONS</button>
+        <button class="admin-tab-btn active bg-red-500 text-black px-4 py-2 font-bold border-2 border-red-500" data-tab="orders">> PROJECTS</button>
+        <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="users">> USERS</button>
+        <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="payments">> PAYMENTS</button>
         <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="banner">> BANNER</button>
-        <button class="admin-tab-btn text-white px-4 py-2 border-2 border-surface-border hover:border-red-500 transition-colors" data-tab="settings">> SETTINGS</button>
     </div>
 
-    <!-- ORDERS PANEL -->
+    <!-- PROJECTS PANEL -->
     <div id="tab-orders" class="admin-tab-content">
-        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> GLOBAL_ORDERS</h3>
+        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> SYSTEM_PROJECTS</h3>
 
         {% if orders %}
         <div class="overflow-x-auto brutalist-border bg-surface border-surface-border">
@@ -39,63 +39,57 @@
                 </thead>
                 <tbody class="divide-y divide-surface-border">
                     {% for order in orders %}
-                    <tr class="hover:bg-black/50 transition-colors">
-                        <td class="p-4 font-bold text-primary">{{ order.get('booking_id') or order.get('Booking ID') }}</td>
-                        <td class="p-4">
-                            <div class="text-white">{{ order.get('name') or order.get('Name') }}</div>
-                            <div class="text-on-surface-variant">{{ order.get('email') or order.get('Email') }}</div>
+<tr class="hover:bg-black/50 transition-colors">
+                        <td class="p-4 font-bold text-primary">
+                            {{ order.get('id') }}<br>
+                            <span class="text-[10px] text-on-surface-variant font-normal">USR: {{ order.get('user_id') }}</span>
                         </td>
                         <td class="p-4">
-                            <div class="text-white font-bold">{{ order.get('project_type') or order.get('Project Type') }}</div>
-                            <div class="text-on-surface-variant">Total: ₹{{ order.get('total_price') }}</div>
-                            <div class="text-on-surface-variant">Adv: ₹{{ order.get('advance_paid') }}</div>
-                            {% if order.get('coupon_applied') %}
-                            <div class="text-green-400">Cupn: {{ order.get('coupon_applied') }} (-₹{{ order.get('discount_amount') }})</div>
-                            {% endif %}
+                            <div class="text-white">{{ order.get('title') }}</div>
+                            <div class="text-on-surface-variant text-xs truncate max-w-[150px]">{{ order.get('description') }}</div>
                         </td>
                         <td class="p-4">
-                            {% set status = order.get('order_status') or order.get('Order Status') or order.get('status') or 'CREATED' %}
+                            <div class="text-on-surface-variant">Total: ₹{{ order.get('total_amount') }}</div>
+                            <div class="text-green-400">Paid: ₹{{ order.get('advance_paid') }}</div>
+                            <div class="text-yellow-400">Rem: ₹{{ order.get('remaining_amount') }}</div>
+                        </td>
+                        <td class="p-4">
+                            {% set status = order.get('status') %}
                             <div class="mb-2">
-                                <span class="px-2 py-1 bg-black border border-surface-border inline-block {{ 'text-primary' if status == 'CREATED' else 'text-yellow-400' if status == 'IN_PROGRESS' else 'text-blue-400' if status == 'PREVIEW_READY' else 'text-purple-400' if status == 'COMPLETED' else 'text-green-500' }}">
+                                <span class="px-2 py-1 bg-black border border-surface-border inline-block {{ 'text-primary' if status == 'Order Created' else 'text-yellow-400' if 'Pending' in status else 'text-blue-400' if 'Preview' in status else 'text-purple-400' if status == 'Completed' else 'text-green-500' }}">
                                     {{ status }}
                                 </span>
                             </div>
 
-                            {% set pay_stat = order.get('payment_status') or order.get('Payment Status') %}
-                            <div class="text-white mb-2">Pymt: <span class="{{ 'text-green-500' if pay_stat == 'Verified' else 'text-yellow-400' }}">{{ pay_stat }}</span></div>
+                            {% set pay_stat = order.get('payment_status') %}
+                            <div class="text-white mb-2">Pymt: <span class="{{ 'text-green-500' if pay_stat == 'paid' else 'text-yellow-400' }}">{{ pay_stat }}</span></div>
 
-                            {% if order.get('screenshot_url') %}
-                            <a href="{{ order.get('screenshot_url') }}" target="_blank" class="text-blue-400 hover:underline">View Receipt</a><br>
-                            <span class="text-on-surface-variant text-[10px]">Ref: {{ order.get('upi_ref_id') }}</span>
+                            {% if order.get('preview_link') %}
+                            <a href="{{ order.get('preview_link') }}" target="_blank" class="text-blue-400 hover:underline text-xs">> VIEW_PREVIEW</a>
                             {% endif %}
                         </td>
                         <td class="p-4">
-                            <div class="flex flex-col gap-2 admin-form" data-id="{{ order.get('booking_id') or order.get('Booking ID') }}">
+                            <div class="flex flex-col gap-2 admin-form" data-id="{{ order.get('id') }}">
                                 <div class="flex gap-2">
-                                    <select name="order_status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-[10px] font-mono" title="Order Lifecycle">
-                                        <option value="CREATED" {% if status == 'CREATED' %}selected{% endif %}>CREATED</option>
-                                        <option value="IN_PROGRESS" {% if status == 'IN_PROGRESS' %}selected{% endif %}>IN_PROGRESS</option>
-                                        <option value="PREVIEW_READY" {% if status == 'PREVIEW_READY' %}selected{% endif %}>PREVIEW_READY</option>
-                                        <option value="APPROVED" {% if status == 'APPROVED' %}selected{% endif %}>APPROVED</option>
-                                        <option value="COMPLETED" {% if status == 'COMPLETED' %}selected{% endif %}>COMPLETED</option>
-                                        <option value="DELIVERED" {% if status == 'DELIVERED' %}selected{% endif %}>DELIVERED</option>
+                                    <select name="status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-[10px] font-mono" title="Order Lifecycle">
+                                        <option value="Order Created" {% if status == 'Order Created' %}selected{% endif %}>Order Created</option>
+                                        <option value="Payment Pending" {% if status == 'Payment Pending' %}selected{% endif %}>Payment Pending</option>
+                                        <option value="Payment Received" {% if status == 'Payment Received' %}selected{% endif %}>Payment Received</option>
+                                        <option value="Preview Not Ready" {% if status == 'Preview Not Ready' %}selected{% endif %}>Preview Not Ready</option>
+                                        <option value="Previews Sent" {% if status == 'Previews Sent' %}selected{% endif %}>Previews Sent</option>
+                                        <option value="Completed" {% if status == 'Completed' %}selected{% endif %}>Completed</option>
                                     </select>
 
                                     <select name="payment_status" class="w-1/2 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-[10px] font-mono" title="Payment Control">
-                                        <option value="Pending" {% if order.get('payment_status') == 'Pending' %}selected{% endif %}>Pay: PENDING</option>
-                                        <option value="Verified" {% if order.get('payment_status') == 'Verified' %}selected{% endif %}>Pay: VERIFIED</option>
-                                        <option value="Rejected" {% if order.get('payment_status') == 'Rejected' %}selected{% endif %}>Pay: REJECTED</option>
+                                        <option value="unpaid" {% if pay_stat == 'unpaid' %}selected{% endif %}>Pay: UNPAID</option>
+                                        <option value="partial" {% if pay_stat == 'partial' %}selected{% endif %}>Pay: PARTIAL</option>
+                                        <option value="paid" {% if pay_stat == 'paid' %}selected{% endif %}>Pay: PAID</option>
                                     </select>
                                 </div>
 
                                 <div class="flex gap-2">
-                                    <select name="preview_status" class="w-1/3 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-[10px] font-mono" title="Preview Status">
-                                        <option value="NOT_READY" {% if order.get('preview_status') == 'NOT_READY' %}selected{% endif %}>Prev: NOT_READY</option>
-                                        <option value="READY" {% if order.get('preview_status') == 'READY' %}selected{% endif %}>Prev: READY</option>
-                                        <option value="SENT" {% if order.get('preview_status') == 'SENT' %}selected{% endif %}>Prev: SENT</option>
-                                    </select>
-
-                                    <input type="text" name="preview_link" placeholder="Preview Link URL" value="{{ order.get('preview_link') or order.get('Preview Link') }}" class="w-2/3 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
+                                    <input type="text" name="notes" placeholder="Notes" value="{{ order.get('notes', '') }}" class="w-1/3 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
+                                    <input type="text" name="preview_link" placeholder="Preview Link URL" value="{{ order.get('preview_link', '') }}" class="w-2/3 bg-black border border-surface-border p-2 text-white focus:border-red-500 text-xs font-mono">
                                 </div>
 
                                 <button type="button" onclick="updateOrder(this)" class="w-full bg-red-500 text-black font-bold py-2 hover:bg-white transition-colors text-xs">
@@ -115,64 +109,31 @@
         {% endif %}
     </div>
 
-    <!-- COUPONS PANEL -->
-    <div id="tab-coupons" class="admin-tab-content hidden">
-        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> COUPON_MANAGEMENT</h3>
-
-        <form method="POST" action="/admin/add_coupon" class="brutalist-border bg-black p-6 mb-8 flex flex-col md:flex-row gap-4 items-end">
-            <div class="w-full md:w-1/5">
-                <label class="block text-xs text-primary mb-1">CODE</label>
-                <input type="text" name="coupon_code" required class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
-            </div>
-            <div class="w-full md:w-1/5">
-                <label class="block text-xs text-primary mb-1">TYPE</label>
-                <select name="discount_type" class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
-                    <option value="flat">Flat</option>
-                    <option value="percent">Percent</option>
-                </select>
-            </div>
-            <div class="w-full md:w-1/5">
-                <label class="block text-xs text-primary mb-1">VALUE</label>
-                <input type="number" name="discount_value" required class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
-            </div>
-            <div class="w-full md:w-1/5">
-                <label class="block text-xs text-primary mb-1">MIN_ORDER</label>
-                <input type="number" name="min_order_value" value="0" class="w-full bg-surface border border-surface-border p-2 text-white text-xs font-mono">
-            </div>
-            <div class="w-full md:w-1/5">
-                <label class="flex items-center gap-2 text-xs text-primary mb-2">
-                    <input type="checkbox" name="active" checked class="bg-surface border-primary"> ACTIVE
-                </label>
-                <button type="submit" class="w-full bg-red-500 text-black font-bold py-2 hover:bg-white transition-colors text-xs">> ADD</button>
-            </div>
-        </form>
-
-        <!-- Current Coupons list (read only for now) -->
+<!-- USERS PANEL -->
+    <div id="tab-users" class="admin-tab-content hidden">
+        <h3 class="text-xl font-bold text-white mb-6 uppercase tracking-wider">> USER_REGISTRY</h3>
         <div class="overflow-x-auto brutalist-border bg-surface border-surface-border">
             <table class="w-full text-left font-mono text-xs">
                 <thead class="bg-black text-on-surface-variant border-b border-surface-border">
                     <tr>
-                        <th class="p-4">Code</th>
-                        <th class="p-4">Type</th>
-                        <th class="p-4">Value</th>
-                        <th class="p-4">Min Order</th>
-                        <th class="p-4">Active</th>
+                        <th class="p-4">ID</th>
+                        <th class="p-4">Name</th>
+                        <th class="p-4">Email</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-surface-border text-white">
-                    {% for cup in coupons %}
+                    {% for u in users %}
                     <tr class="hover:bg-black/50 transition-colors">
-                        <td class="p-4 font-bold text-primary">{{ cup.get('coupon_code') }}</td>
-                        <td class="p-4">{{ cup.get('discount_type') }}</td>
-                        <td class="p-4">{{ cup.get('discount_value') }}</td>
-                        <td class="p-4">₹{{ cup.get('min_order_value') }}</td>
-                        <td class="p-4">{{ cup.get('active') }}</td>
+                        <td class="p-4 font-bold text-primary">{{ u.get('id') }}</td>
+                        <td class="p-4">{{ u.get('name') }}</td>
+                        <td class="p-4">{{ u.get('email') }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+
 
     <!-- BANNER PANEL -->
     <div id="tab-banner" class="admin-tab-content hidden">

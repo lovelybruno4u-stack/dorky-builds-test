@@ -16,7 +16,7 @@ projects_sheet = None
 orders_sheet = None
 banner_sheet = None
 
-def _enforce_worksheet(title, headers):
+def _enforce_worksheet(title, headers, default_data=None):
     global SPREADSHEET
     try:
         ws = SPREADSHEET.worksheet(title)
@@ -25,18 +25,24 @@ def _enforce_worksheet(title, headers):
         ws = SPREADSHEET.add_worksheet(title=title, rows="1000", cols="20")
 
     try:
-        # If it's completely empty (no rows at all or row 1 throws an error)
         existing = ws.row_values(1)
         if not existing:
             ws.insert_row(headers, 1)
+            if default_data:
+                for row in default_data:
+                    ws.append_row(row)
     except Exception as e:
         print(f"⚠️ [WORKSHEET] Sheet '{title}' is empty or unreadable. Initializing headers...")
         try:
             ws.insert_row(headers, 1)
+            if default_data:
+                for row in default_data:
+                    ws.append_row(row)
         except Exception as e2:
             print(f"❌ [WORKSHEET] Failed to initialize headers for '{title}': {e2}")
 
     return ws
+
 
 def init_google_client():
     global GOOGLE_CLIENT, SHEET_CONNECTED, SPREADSHEET
@@ -71,17 +77,29 @@ def init_google_client():
         SPREADSHEET = GOOGLE_CLIENT.open_by_key(sheet_id)
         print(f"✅ [WORKBOOK] Connected directly to GOOGLE_SHEET_ID: {sheet_id}")
 
-        # Enforce exact worksheets requested
+# Enforce exact worksheets requested
         users_sheet = _enforce_worksheet("users", ["id", "name", "email", "password"])
-        admin_sheet = _enforce_worksheet("admin", ["username", "password"])
+        admin_sheet = _enforce_worksheet("admin", ["username", "password"], [["dorkybuildsadmin", "Poorvi@2011"]])
         logs_sheet = _enforce_worksheet("logs", ["time", "event"])
         contacts_sheet = _enforce_worksheet("contacts", ["name", "email", "message"])
-        projects_sheet = _enforce_worksheet("projects", ["title", "description", "status"])
-        payments_sheet = _enforce_worksheet("payments", ["payment_id", "order_id", "amount", "type", "status", "timestamp"])
 
-        # Keep previously strictly requested core components to ensure existing routes don't break entirely if expected
-        orders_sheet = _enforce_worksheet("Orders", ["Order ID", "Name", "Email", "Build Type", "Status", "Payment Status", "Timestamp"])
+        # User defined `projects` in instructions, which acts as orders.
+        # "projects: title, description, status" -> Wait, they say:
+        # "users.id ↔ projects.user_id" and "projects.id ↔ payments.project_id"
+        # And previously they said: "total_amount, paid_amount, remaining_amount, advance_paid"
+        # I must ensure the projects sheet has ALL these fields.
+        projects_sheet = _enforce_worksheet("projects", [
+            "id", "user_id", "title", "description", "status", "payment_status", "total_amount", "advance_paid", "remaining_amount", "preview_link", "notes", "timestamp"
+        ])
+
+        # Redefine payments sheet
+        payments_sheet = _enforce_worksheet("payments", ["payment_id", "project_id", "amount", "type", "status", "timestamp"])
+
+        # Banner for backwards compatibility
         banner_sheet = _enforce_worksheet("Banner", ["id", "text", "active"])
+
+        # Ensure backwards compatibility for previously routed code expecting get_orders_sheet() to map to projects
+        orders_sheet = projects_sheet
 
         print("✅ [WORKSHEETS] All sheets enforced and globals assigned.")
         return True
@@ -146,3 +164,10 @@ def get_launch_tracker_sheet():
 def get_admin_logs_sheet():
     # Remapped to the new generic `logs` sheet requested by the user
     return get_logs_sheet()
+
+
+def get_admin_sheet():
+    global admin_sheet
+    if SHEET_CONNECTED and admin_sheet is not None:
+        return admin_sheet
+    raise Exception("Database disconnected or Admin sheet missing")
