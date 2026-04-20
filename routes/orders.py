@@ -54,7 +54,7 @@ def create_order():
     except ValueError:
         remaining_amount = total_price
 
-user_id = session.get('user_id', 'anonymous')
+    user_id = session.get('user_id', 'anonymous')
     notes = f"Name: {data.get('name', '')} | Email: {data.get('email', '')} | Phone: {data.get('phone', '')} | Plan: {data.get('plan', '')} | Features: {data.get('features', '')} | UPI: {data.get('upi_ref_id', '')} | Screenshot: {screenshot_url}"
 
     try:
