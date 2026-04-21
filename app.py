@@ -26,6 +26,11 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dorky_builds_super_secret_dev_key")
+app.config.update(
+    SESSION_COOKIE_SECURE=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=86400
+)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # 5 MB max upload size
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
@@ -479,6 +484,7 @@ def admin_dashboard():
     users = []
     payments = []
     banner = {}
+    settings = {}
 
     if SHEET_CONNECTED:
         try:
@@ -507,10 +513,17 @@ def admin_dashboard():
             except Exception:
                 pass
 
+            try:
+                settings_sheet = get_settings_sheet()
+                sett = settings_sheet.get_all_records()
+                settings = {str(r.get('setting_name')).strip(): str(r.get('value')).strip() for r in sett if r.get('setting_name')}
+            except Exception:
+                pass
+
         except Exception as e:
             print(f"❌ [ADMIN] Dashboard critical data fetch error: {e}")
 
-    return render_template('admin_dashboard.html', orders=projects, users=users, payments=payments, banner=banner)
+    return render_template('admin_dashboard.html', orders=projects, users=users, payments=payments, banner=banner, settings=settings)
 
 
 @app.route('/admin/update_banner', methods=['POST'])

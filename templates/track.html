@@ -121,7 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.success && data.order) {
                     const order = data.order;
                     const status = order.status || order.Status || 'REQUESTED';
-                    const paymentStatus = order.payment_status || order['Payment Status'] || 'PENDING';
+const paymentStatus = order.payment_status || order['Payment Status'] || 'Pending';
+                    const advancePaid = order.advance_paid || order['Advance Paid'] || 0;
+                    const remainingAmount = order.remaining_amount || order['Remaining Amount'] || 0;
+                    const finalPrice = order.final_price || order['Total Amount'] || 0;
                     const approved = order.approved || order.Approved || 'NO';
                     const previewLink = order.preview_link || order['Preview Link'];
 
@@ -165,7 +168,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('res-name').innerText = order.name || order.Name || '-';
                     document.getElementById('res-project').innerText = order.project_type || order['Project Type'] || '-';
                     document.getElementById('res-plan').innerText = order.plan || order.Plan || '-';
-                    document.getElementById('res-payment').innerText = paymentStatus;
+const paymentDisplay = document.getElementById('res-payment');
+                    paymentDisplay.innerText = paymentStatus;
+                    if (paymentStatus === 'Completed' || paymentStatus === 'paid') {
+                        paymentDisplay.className = "text-green-500 font-bold";
+                    } else if (paymentStatus === 'Partially Paid' || paymentStatus === 'partial') {
+                        paymentDisplay.className = "text-yellow-400 font-bold";
+                        paymentDisplay.innerText += ` (Paid: ₹${advancePaid}, Rem: ₹${remainingAmount})`;
+                    } else {
+                        paymentDisplay.className = "text-red-500 font-bold";
+                    }
 
                     // Dynamic Actions
                     const actionsContainer = document.getElementById('dynamic-actions');
