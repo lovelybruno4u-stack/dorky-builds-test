@@ -114,60 +114,43 @@ init_google_client()
 
 # Globals exposure helpers
 def get_orders_sheet():
-    global orders_sheet
-    if SHEET_CONNECTED and orders_sheet is not None:
-        return orders_sheet
+    sheet = globals().get('orders_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
     raise Exception("Database disconnected or Orders sheet missing")
 
 def get_banner_sheet():
-    global banner_sheet
-    if SHEET_CONNECTED and banner_sheet is not None:
-        return banner_sheet
+    sheet = globals().get('banner_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
     raise Exception("Database disconnected or Banner sheet missing")
 
 def get_users_sheet():
-    global users_sheet
-    if SHEET_CONNECTED and users_sheet is not None:
-        return users_sheet
+    sheet = globals().get('users_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
     raise Exception("Database disconnected or Users sheet missing")
 
 def get_logs_sheet():
-    global logs_sheet
-    if SHEET_CONNECTED and logs_sheet is not None:
-        return logs_sheet
+    sheet = globals().get('logs_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
     raise Exception("Database disconnected or Logs sheet missing")
 
 def get_contacts_sheet():
-    global contacts_sheet
-    if SHEET_CONNECTED and contacts_sheet is not None:
-        return contacts_sheet
+    sheet = globals().get('contacts_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
     raise Exception("Database disconnected or Contacts sheet missing")
 
 def get_projects_sheet():
-    global projects_sheet
-    if SHEET_CONNECTED and projects_sheet is not None:
-        return projects_sheet
+    sheet = globals().get('projects_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
     raise Exception("Database disconnected or Projects sheet missing")
 
-# Stub getters for completely purged schemas to prevent 500s where possible
-def get_coupons_sheet():
-    raise Exception("Coupons sheet dropped from strict schema")
-def get_settings_sheet():
-    raise Exception("Settings sheet dropped from strict schema")
-def get_payments_sheet():
-    global payments_sheet
-    if SHEET_CONNECTED and payments_sheet is not None:
-        return payments_sheet
-    raise Exception("Database disconnected or Payments sheet missing")
-def get_launch_tracker_sheet():
-    raise Exception("Launch Tracker sheet dropped from strict schema")
-def get_admin_logs_sheet():
-    # Remapped to the new generic `logs` sheet requested by the user
-    return get_logs_sheet()
-
-
 def get_admin_sheet():
-    global admin_sheet
-    if SHEET_CONNECTED and admin_sheet is not None:
-        return admin_sheet
+    sheet = globals().get('admin_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
     raise Exception("Database disconnected or Admin sheet missing")

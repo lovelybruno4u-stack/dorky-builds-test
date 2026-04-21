@@ -118,12 +118,19 @@ def track_order(order_id):
 
     try:
         ws = get_orders_sheet()
-        col_values = ws.col_values(1)
+col_values = ws.col_values(1)
 
-        if order_id not in col_values:
+        # Safe match
+        found_idx = -1
+        for idx, val in enumerate(col_values):
+            if str(val).strip().upper() == order_id:
+                found_idx = idx
+                break
+
+        if found_idx == -1:
             return jsonify({"success": False, "error": "Order not found"}), 404
 
-        row_idx = col_values.index(order_id) + 1
+        row_idx = found_idx + 1
         headers = ws.row_values(1)
         row_data = ws.row_values(row_idx)
 
