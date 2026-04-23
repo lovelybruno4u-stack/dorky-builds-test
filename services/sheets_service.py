@@ -18,14 +18,21 @@ banner_sheet = None
 
 def _enforce_worksheet(title, headers, default_data=None):
     global SPREADSHEET
-    try:
-        ws = SPREADSHEET.worksheet(title)
-    except gspread.exceptions.WorksheetNotFound:
+    ws = None
+
+    # Robust case-insensitive search to prevent creation collisions
+    for sheet in SPREADSHEET.worksheets():
+        if sheet.title.lower() == title.lower():
+            ws = sheet
+            break
+
+    if not ws:
         print(f"⏳ [WORKSHEET] '{title}' not found. Creating...")
         ws = SPREADSHEET.add_worksheet(title=title, rows="1000", cols="20")
 
     try:
         existing = ws.row_values(1)
+        if not existing:
         if not existing:
             ws.insert_row(headers, 1)
             if default_data:
