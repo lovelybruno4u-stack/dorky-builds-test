@@ -118,7 +118,7 @@ def track_order(order_id):
 
     try:
         ws = get_orders_sheet()
-col_values = ws.col_values(1)
+        col_values = ws.col_values(1)
 
         # Safe match
         found_idx = -1

@@ -125,6 +125,23 @@ def get_banner_sheet():
         return sheet
     raise Exception("Database disconnected or Banner sheet missing")
 
+def get_payments_sheet():
+    sheet = globals().get('payments_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
+    raise Exception("Database disconnected or Payments sheet missing")
+
+def get_admin_logs_sheet():
+    # Mapped to the generic logs sheet natively requested by user
+    return get_logs_sheet()
+
+def get_settings_sheet():
+    raise Exception("Settings sheet dropped from strict schema")
+def get_coupons_sheet():
+    raise Exception("Coupons sheet dropped from strict schema")
+def get_launch_tracker_sheet():
+    raise Exception("Launch Tracker sheet dropped from strict schema")
+
 def get_users_sheet():
     sheet = globals().get('users_sheet')
     if SHEET_CONNECTED and sheet is not None:
