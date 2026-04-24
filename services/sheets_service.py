@@ -15,6 +15,7 @@ contacts_sheet = None
 projects_sheet = None
 orders_sheet = None
 banner_sheet = None
+payments_sheet = None
 
 def _enforce_worksheet(title, headers, default_data=None):
     global SPREADSHEET
@@ -32,7 +33,6 @@ def _enforce_worksheet(title, headers, default_data=None):
 
     try:
         existing = ws.row_values(1)
-        if not existing:
         if not existing:
             ws.insert_row(headers, 1)
             if default_data:
@@ -54,7 +54,7 @@ def _enforce_worksheet(title, headers, default_data=None):
 def init_google_client():
     global GOOGLE_CLIENT, SHEET_CONNECTED, SPREADSHEET
     global users_sheet, admin_sheet, logs_sheet, contacts_sheet, projects_sheet
-    global orders_sheet, banner_sheet
+    global orders_sheet, banner_sheet, payments_sheet
 
     creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "") or os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
     sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
