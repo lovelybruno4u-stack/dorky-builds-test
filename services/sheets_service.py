@@ -16,6 +16,9 @@ projects_sheet = None
 orders_sheet = None
 banner_sheet = None
 payments_sheet = None
+settings_sheet = None
+coupons_sheet = None
+launch_tracker_sheet = None
 
 def _enforce_worksheet(title, headers, default_data=None):
     global SPREADSHEET
@@ -55,6 +58,7 @@ def init_google_client():
     global GOOGLE_CLIENT, SHEET_CONNECTED, SPREADSHEET
     global users_sheet, admin_sheet, logs_sheet, contacts_sheet, projects_sheet
     global orders_sheet, banner_sheet, payments_sheet
+    global settings_sheet, coupons_sheet, launch_tracker_sheet
 
     creds_json_str = os.environ.get("GOOGLE_CREDS_JSON", "") or os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
     sheet_id = os.environ.get("GOOGLE_SHEET_ID", "").strip()
@@ -105,6 +109,15 @@ def init_google_client():
         # Banner for backwards compatibility
         banner_sheet = _enforce_worksheet("Banner", ["id", "text", "active"])
 
+        # Settings sheet for site-wide configuration
+        settings_sheet = _enforce_worksheet("settings", ["setting_name", "value"])
+
+        # Coupons sheet for discount codes
+        coupons_sheet = _enforce_worksheet("coupons", ["coupon_code", "discount_type", "discount_value", "min_order_value", "expiry_date", "active"])
+
+        # Launch tracker sheet for internal feature tracking
+        launch_tracker_sheet = _enforce_worksheet("launch_tracker", ["Feature Name", "Category", "Status", "Notes", "Last Updated Timestamp"])
+
         # Ensure backwards compatibility for previously routed code expecting get_orders_sheet() to map to projects
         orders_sheet = projects_sheet
 
@@ -143,11 +156,22 @@ def get_admin_logs_sheet():
     return get_logs_sheet()
 
 def get_settings_sheet():
-    raise Exception("Settings sheet dropped from strict schema")
+    sheet = globals().get('settings_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
+    raise Exception("Database disconnected or Settings sheet missing")
+
 def get_coupons_sheet():
-    raise Exception("Coupons sheet dropped from strict schema")
+    sheet = globals().get('coupons_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
+    raise Exception("Database disconnected or Coupons sheet missing")
+
 def get_launch_tracker_sheet():
-    raise Exception("Launch Tracker sheet dropped from strict schema")
+    sheet = globals().get('launch_tracker_sheet')
+    if SHEET_CONNECTED and sheet is not None:
+        return sheet
+    raise Exception("Database disconnected or Launch Tracker sheet missing")
 
 def get_users_sheet():
     sheet = globals().get('users_sheet')

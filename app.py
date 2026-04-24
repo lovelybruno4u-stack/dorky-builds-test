@@ -13,7 +13,8 @@ from werkzeug.utils import secure_filename
 from services.sheets_service import (
     init_google_client, get_orders_sheet, get_payments_sheet,
     get_admin_logs_sheet, get_banner_sheet, get_settings_sheet, get_coupons_sheet,
-    get_launch_tracker_sheet, SHEET_CONNECTED, get_users_sheet
+    get_launch_tracker_sheet, SHEET_CONNECTED, get_users_sheet,
+    get_logs_sheet, get_contacts_sheet, get_admin_sheet
 )
 from utils.logger import log_api_hit, write_admin_log, write_submission_log
 
@@ -48,35 +49,7 @@ DEBUG_MODE = os.environ.get("DEBUG", "true").lower() == "true"
 def generate_booking_id():
     return "DB-" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 
-def get_orders_sheet():
-    global orders_sheet
-    if SHEET_CONNECTED and orders_sheet is not None:
-        return orders_sheet
-    raise Exception("Database disconnected or Orders sheet missing")
 
-def get_banner_sheet():
-    global banner_sheet
-    if SHEET_CONNECTED and banner_sheet is not None:
-        return banner_sheet
-    raise Exception("Database disconnected or Banner sheet missing")
-
-def get_settings_sheet():
-    global settings_sheet
-    if SHEET_CONNECTED and settings_sheet is not None:
-        return settings_sheet
-    raise Exception("Database disconnected or Settings sheet missing")
-
-def get_coupons_sheet():
-    global coupons_sheet
-    if SHEET_CONNECTED and coupons_sheet is not None:
-        return coupons_sheet
-    raise Exception("Database disconnected or Coupons sheet missing")
-
-def get_logs_sheet():
-    global logs_sheet
-    if SHEET_CONNECTED and logs_sheet is not None:
-        return logs_sheet
-    raise Exception("Database disconnected or Logs sheet missing")
 
 
 def log_admin_action(action, details):
@@ -268,11 +241,9 @@ def contact_submit():
     message = data.get('message', 'No message')
 
     try:
-        from services.sheets_service import get_contacts_sheet
         contacts_sheet = get_contacts_sheet()
         contacts_sheet.append_row([name, email, message])
 
-        from utils.logger import write_submission_log
         write_submission_log("Contact", email, f"Name: {name} | Msg length: {len(message)}")
     except Exception as e:
         print(f"❌ [CONTACT] Failed to save contact submission: {e}")
@@ -345,7 +316,9 @@ def validate_coupon():
     if not code:
         return jsonify({"status": "error", "message": "No code provided"}), 400
 
-    if not SHEET_CONNECTED or not coupons_sheet:
+    try:
+        coupons_sheet = get_coupons_sheet()
+    except Exception as e:
         return jsonify({"status": "error", "message": "Database disconnected"}), 500
 
     try:
@@ -441,7 +414,6 @@ def admin_login():
         password = request.form.get('password')
 
         try:
-            from services.sheets_service import get_admin_sheet
             ws = get_admin_sheet()
             records = ws.get_all_records()
             auth_success = False
